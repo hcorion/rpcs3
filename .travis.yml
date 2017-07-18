@@ -62,16 +62,14 @@ before_script:
   - git submodule update --init asmjit 3rdparty/ffmpeg 3rdparty/pugixml 3rdparty/GSL 3rdparty/libpng Utilities/yaml-cpp 3rdparty/cereal 3rdparty/hidapi Vulkan/glslang Vulkan/Vulkan-LoaderAndValidationLayers
   - mkdir build
   - cd build
-  - ls /
-  - ls ${PWD}/../
-  - ls
-  - docker run -v ${PWD}/../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; cmake .. -DCMAKE_INSTALL_PREFIX=/usr"
-  #- if [ -z "$WITHOUT_LLVM" ]; then
-      
-    #else
-      #cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DWITHOUT_LLVM=ON;
-  #  fi;
-  - make -j 3
+  - if [ -z "$WITHOUT_LLVM" ]; then
+      export CMAKE_FLAGS="";
+    else
+      export CMAKE_FLAGS="-DWITHOUT_LLVM=ON";
+    fi;
+  - docker run -v ${PWD}/../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; cmake .. -DCMAKE_INSTALL_PREFIX=/usr ${CMAKE_FLAGS}"
+  - docker run -v ${PWD}/../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; make -j3"
+  
   - # AppImage generation
   - if [ "$TRAVIS_BRANCH" = "master" ] && [ "$CC" = "clang-4.0" ] && [ "$TRAVIS_PULL_REQUEST" = false ]; then
       export LD_LIBRARY_PATH=${PWD}/3rdparty/libpng:/opt/qt59/lib/:$LD_LIBRARY_PATH ;
