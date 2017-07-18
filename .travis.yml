@@ -63,9 +63,9 @@ before_script:
   - mkdir build
   - cd build
   - ls /
-  - ls ${PWD}../
+  - ls ${PWD}/../
   - ls
-  - docker run -v ${PWD}../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/ ; ls ; cd build ; cmake .. -DCMAKE_INSTALL_PREFIX=/usr"
+  - docker run -v ${PWD}/../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; cmake .. -DCMAKE_INSTALL_PREFIX=/usr"
   #- if [ -z "$WITHOUT_LLVM" ]; then
       
     #else
