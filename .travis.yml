@@ -62,7 +62,7 @@ before_script:
   - git submodule update --init asmjit 3rdparty/ffmpeg 3rdparty/pugixml 3rdparty/GSL 3rdparty/libpng Utilities/yaml-cpp 3rdparty/cereal 3rdparty/hidapi Vulkan/glslang Vulkan/Vulkan-LoaderAndValidationLayers
   - mkdir build
   - cd build
-  - docker run -v ${PWD}../:/rpcs3 -e CC='$CC' -e CXX='$CXX' -other -options rpcs3/rpcs3 'cmake .. -DCMAKE_INSTALL_PREFIX=/usr;' ;
+  - docker run -v ${PWD}../:/rpcs3 -e CC=$CC -e CXX=$CXX -options rpcs3/rpcs3 'cd /rpcs3 ; cmake .. -DCMAKE_INSTALL_PREFIX=/usr;' ;
   #- if [ -z "$WITHOUT_LLVM" ]; then
       
     #else
@@ -96,30 +96,8 @@ script:
 
 addons:
   apt:
-    sources:
-      - ubuntu-toolchain-r-test
-      - llvm-toolchain-trusty-4.0
     packages:
       - cmake
-      - libasound2-dev
-      - libopenal-dev
-      - freeglut3-dev
-      #- libglew-dev
-      #- libvulkan1
-      #- libvulkan-dev
-      - libc6-dev
-      - llvm-4.0
-      - llvm-4.0-dev
-      - clang-4.0
-      - libedit-dev
-      - g++-5
-      - gcc-5
-      - libstdc++-5-dev
-      - lib32stdc++6
-      - zlib1g-dev
-      # We need to install qt 5.8 manually because the version trusty provides is too old.
-      #- qtbase5-dev
-      - libudev-dev
   coverity_scan:
     project:
       name: $TRAVIS_REPO_SLUG
