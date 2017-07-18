@@ -78,10 +78,10 @@ before_script:
       wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage" ; 
       chmod a+x linuxdeployqt*.AppImage ;
       unset QTDIR; unset QT_PLUGIN_PATH ;
-      docker run -v ${PWD}/../:/rpcs3 rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; ./linuxdeployqt*.AppImage ./appdir/usr/share/applications/*.desktop -bundle-non-qt-libs ;./linuxdeployqt*.AppImage ./appdir/usr/share/applications/*.desktop -appimage"
-      ls
-      ls ./appdir
-      ls ./appdir/lib
+      docker run -v ${PWD}/../:/rpcs3 rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; ./linuxdeployqt*.AppImage ./appdir/usr/share/applications/*.desktop -bundle-non-qt-libs ;./linuxdeployqt*.AppImage ./appdir/usr/share/applications/*.desktop -appimage" ;
+      ls ;
+      ls ./appdir ;
+      ls ./appdir/lib ;
       if [ -z "$WITHOUT_LLVM" ]; then
         export LLVM="-LLVM";
       fi;
