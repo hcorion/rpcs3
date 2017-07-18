@@ -62,6 +62,9 @@ before_script:
   - git submodule update --init asmjit 3rdparty/ffmpeg 3rdparty/pugixml 3rdparty/GSL 3rdparty/libpng Utilities/yaml-cpp 3rdparty/cereal 3rdparty/hidapi Vulkan/glslang Vulkan/Vulkan-LoaderAndValidationLayers
   - mkdir build
   - cd build
+  - ls /
+  - ls ${PWD}../
+  - ls
   - docker run -v ${PWD}../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/ ; ls ; cd build ; cmake .. -DCMAKE_INSTALL_PREFIX=/usr"
   #- if [ -z "$WITHOUT_LLVM" ]; then
       
