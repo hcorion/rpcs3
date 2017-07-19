@@ -80,7 +80,7 @@ before_script:
       ./linuxdeployqt-continuous-x86_64.AppImage --appimage-extract ;
       unset QTDIR; unset QT_PLUGIN_PATH ;
       docker run -v ${PWD}/../:/rpcs3 rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; LD_LIBRARY_PATH=/opt/qt59/lib/ QTDIR= QT_PLUGIN_PATH= ./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -bundle-non-qt-libs" ;
-      rm ./appdir/usr/lib/libLLVM* ;
+      rm -f ./appdir/usr/lib/libLLVM* ;
       docker run -v ${PWD}/../:/rpcs3 rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; LD_LIBRARY_PATH=/opt/qt59/lib/ QTDIR= QT_PLUGIN_PATH= ./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -appimage" ;
       ls ;
       ls ./appdir ;
