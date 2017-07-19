@@ -87,7 +87,6 @@ before_script:
         export LLVM="-LLVM";
       fi;
       curl https://transfer.sh${TRAVIS_COMMIT:0:7}-${TRAVIS_BUILD_NUMBER}${LLVM}_linux64 --upload-file ./RPCS3*.AppImage; 
-      #curl ${UPLOAD_URL}${TRAVIS_COMMIT:0:7}-${TRAVIS_BUILD_NUMBER}${LLVM}_linux64 --upload-file ./RPCS3*.AppImage; 
    fi;
 
 script:
