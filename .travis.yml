@@ -68,12 +68,12 @@ before_script:
       export CMAKE_FLAGS="-DWITHOUT_LLVM=ON";
     fi;
   - docker run -v ${PWD}/../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; cmake .. -DCMAKE_INSTALL_PREFIX=/usr ${CMAKE_FLAGS}"
-  - docker run -v ${PWD}/../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; make -j3"
+  - docker run -v ${PWD}/../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; make -j3 ; make DESTDIR=appdir install "
   
   - # AppImage generation
   - if [ "$CC" = "clang-4.0" ] && [ "$TRAVIS_PULL_REQUEST" = false ]; then
       export LD_LIBRARY_PATH=${PWD}/3rdparty/libpng:/opt/qt59/lib/:$LD_LIBRARY_PATH ;
-      make DESTDIR=appdir install ; find appdir/ ;
+      find appdir/ ;
       find ../bin ;
       wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage" ; 
       chmod a+x linuxdeployqt*.AppImage ;
