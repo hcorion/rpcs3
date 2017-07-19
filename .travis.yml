@@ -63,9 +63,9 @@ before_script:
   - mkdir build
   - cd build
   - if [ -z "$WITHOUT_LLVM" ]; then
-      export CMAKE_FLAGS="";
+      export CMAKE_FLAGS="-DUSE_SYSTEM_LIBPNG=ON";
     else
-      export CMAKE_FLAGS="-DWITHOUT_LLVM=ON";
+      export CMAKE_FLAGS="-DWITHOUT_LLVM=ON -DUSE_SYSTEM_LIBPNG=ON";
     fi;
   - docker run -v ${PWD}/../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; cmake .. -DCMAKE_INSTALL_PREFIX=/usr ${CMAKE_FLAGS}"
   - docker run -v ${PWD}/../:/rpcs3 -e CC=$CC -e CXX=$CXX rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; make -j3 ; make DESTDIR=appdir install "
@@ -80,7 +80,9 @@ before_script:
       ./linuxdeployqt-continuous-x86_64.AppImage --appimage-extract ;
       unset QTDIR; unset QT_PLUGIN_PATH ;
       docker run -v ${PWD}/../:/rpcs3 rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; LD_LIBRARY_PATH=/opt/qt59/lib/ QTDIR= QT_PLUGIN_PATH= ./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -bundle-non-qt-libs" ;
-      rm -f ./appdir/usr/lib/libLLVM* ;
+      sudo rm -f ./appdir/usr/lib/libLLVM* ;
+      sudo mv ./appdir/usr/bin/rpcs3 rpcs3-bin ;
+      echo '#!/usr/bin/env sh\ncd $0 ; LD_PRELOAD=./libselinux.so.1 ./rpcs3-bin' >> ./appdir/usr/bin/rpcs3
       docker run -v ${PWD}/../:/rpcs3 rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; LD_LIBRARY_PATH=/opt/qt59/lib/ QTDIR= QT_PLUGIN_PATH= ./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -appimage" ;
       ls ;
       ls ./appdir ;
