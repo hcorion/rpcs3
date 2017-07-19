@@ -82,11 +82,12 @@ before_script:
       docker run -v ${PWD}/../:/rpcs3 rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; ./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -bundle-non-qt-libs ;./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -appimage" ;
       ls ;
       ls ./appdir ;
-      ls ./appdir/lib ;
+      ls ./appdir/usr/lib ;
       if [ -z "$WITHOUT_LLVM" ]; then
         export LLVM="-LLVM";
       fi;
-      curl ${UPLOAD_URL}${TRAVIS_COMMIT:0:7}-${TRAVIS_BUILD_NUMBER}${LLVM}_linux64 --upload-file ./RPCS3*.AppImage; 
+      curl https://transfer.sh${TRAVIS_COMMIT:0:7}-${TRAVIS_BUILD_NUMBER}${LLVM}_linux64 --upload-file ./RPCS3*.AppImage; 
+      #curl ${UPLOAD_URL}${TRAVIS_COMMIT:0:7}-${TRAVIS_BUILD_NUMBER}${LLVM}_linux64 --upload-file ./RPCS3*.AppImage; 
    fi;
 
 script:
