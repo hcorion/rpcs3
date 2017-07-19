@@ -82,7 +82,7 @@ before_script:
       docker run -v ${PWD}/../:/rpcs3 rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; LD_LIBRARY_PATH=/opt/qt59/lib/ QTDIR= QT_PLUGIN_PATH= ./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -bundle-non-qt-libs" ;
       sudo rm -f ./appdir/usr/lib/libLLVM* ;
       sudo mv ./appdir/usr/bin/rpcs3 rpcs3-bin ;
-      echo '#!/usr/bin/env sh\ncd $0 ; LD_PRELOAD=./libselinux.so.1 ./rpcs3-bin' >> ./appdir/usr/bin/rpcs3
+      echo '#!/usr/bin/env sh\ncd $0 ; LD_PRELOAD=./libselinux.so.1 ./rpcs3-bin' >> ./appdir/usr/bin/rpcs3 ;
       docker run -v ${PWD}/../:/rpcs3 rpcs3/rpcs3 /bin/bash -c "cd /rpcs3/build ; LD_LIBRARY_PATH=/opt/qt59/lib/ QTDIR= QT_PLUGIN_PATH= ./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -appimage" ;
       ls ;
       ls ./appdir ;
