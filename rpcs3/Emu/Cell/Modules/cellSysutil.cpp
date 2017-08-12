@@ -4,6 +4,7 @@
 #include "Emu/Cell/PPUModule.h"
 #include "Emu/Cell/lv2/sys_mutex.h"
 #include "Emu/Cell/lv2/sys_cond.h"
+#include "Emu/Cell/PPUOpcodes.h"
 
 #include "cellSysutil.h"
 
@@ -11,6 +12,8 @@
 
 #include <mutex>
 #include <queue>
+
+extern error_code sys_mutex_lock(ppu_thread&, u32, u64);
 
 logs::channel cellSysutil("cellSysutil");
 
@@ -143,14 +146,8 @@ struct SysutilSlotSync {
 
 //static_assert(sizeof(SysutilSlotSync) == 0x18, "Invalid SysutilSlotSync size");
 
-class sysutil_service_manager final : public named_thread
+struct sysutil_service_manager
 {
-    void on_task() override;
-
-    std::string get_name() const override { return "Sysutil Service Manager"; }
-
-    u32 internalPacketRead();
-
     vm::ptr<char> internalCxmlBuffer = vm::null;
     vm::ptr<cxml_document> internalCxmlDoc = vm::null;
     vm::ptr<cxml_attribute> internalCxmlAttr = vm::null;
@@ -158,7 +155,6 @@ class sysutil_service_manager final : public named_thread
 
     std::shared_ptr<ppu_thread> internalThread;
 
-public:
     // packet stuff may want to be vm::gvar instead 
     atomic_t<bool> packetMemInUse{ false };
     std::array<bool, 6> memoryInUse{ 0 };
@@ -167,13 +163,11 @@ public:
 
     SysutilSlotSync slotSync; // todo: there should be 1 per slot
 
-    void on_init(const std::shared_ptr<void>&) override;
-
     std::vector<u64> keys;
 
     semaphore<> mutex;
 
-    sysutil_service_manager() = default;
+    void init();
 
     ~sysutil_service_manager()
     {
@@ -187,7 +181,9 @@ public:
     }
 };
 
-void sysutil_service_manager::on_init(const std::shared_ptr<void> &_this) {
+void sceVshSysutilService(ppu_thread& ppu);
+
+void sysutil_service_manager::init() {
     // this is needed for local sysutil packet
     cxml_packet_mem.set(vm::alloc(0x6000, vm::main));
 
@@ -266,106 +262,95 @@ void sysutil_service_manager::on_init(const std::shared_ptr<void> &_this) {
 
     slotSync.ctf_cond = *condid;
 
-    // this is just used to route the locks to, this is probly a 'bad idea' *tm
     internalThread = idm::make_ptr<ppu_thread>("SceVshSysutil", 1, 0x4000);
     internalThread->run();
 
-    named_thread::on_init(_this);
+    internalThread->cmd_list
+    ({
+        //{ ppu_cmd::set_args, 1 }, u64{ 1 },
+        { ppu_cmd::hle_call, FIND_FUNC(sceVshSysutilService) },
+        { ppu_cmd::sleep, 0 }
+    });
+
+    internalThread->notify();
+
 }
 
 // this is very similar to packetRead for now, it just ignores the event
-u32 sysutil_service_manager::internalPacketRead() {
+u32 internalPacketRead(ppu_thread& ppu) {
+    const auto m = fxm::get<sysutil_service_manager>();
     u32 bufferLeft = 0x6000;
 
     u8 isDone = 0;
 
-    u32 addr = internalCxmlBuffer.addr();
+    u32 addr = m->internalCxmlBuffer.addr();
     while (bufferLeft != 0 && isDone == 0) {
-        internalThread->cmd_list
-        ({
-            { ppu_cmd::set_args, 2 }, u64{ slotSync.shm_mutex }, u64{ 0 },
-            { ppu_cmd::hle_call, FIND_FUNC(sys_mutex_lock) },
-        });
 
-        //if (ret != CELL_OK)
-        //    fmt::throw_exception("internalPacketRead: lock failed1");
+        u32 ret = sys_mutex_lock(ppu, m->slotSync.shm_mutex, 0);
+        if (ret != CELL_OK)
+            fmt::throw_exception("internalPacketRead: lock failed1");
 
-        while ((slotSync.sharedMemInfo->unk7 == 2) || slotSync.sharedMemInfo->bytesWritten == 0) {
-            if (slotSync.sharedMemInfo->unk9 != 0) {
-                internalThread->cmd_list
-                ({
-                    { ppu_cmd::set_args, 1 }, u64{ slotSync.shm_mutex },
-                    { ppu_cmd::hle_call, FIND_FUNC(sys_mutex_unlock) },
-                });
+        cellSysutil.error("lock");
+        while ((m->slotSync.sharedMemInfo->unk7 == 2) || m->slotSync.sharedMemInfo->bytesWritten == 0) {
+            if (m->slotSync.sharedMemInfo->unk9 != 0) {
+
+                sys_mutex_unlock(ppu, m->slotSync.shm_mutex);
                 fmt::throw_exception("internalPacketRead: unk9"); // no idea what this return signifiys 
             }
+            cellSysutil.error("wait");
 
-            internalThread->cmd_list
-            ({
-                { ppu_cmd::set_args, 2 }, u64{ slotSync.nem_cond }, u64{ 0 },
-                { ppu_cmd::hle_call, FIND_FUNC(sys_cond_wait) },
-            });
-
-            //if (ret != CELL_OK)
-            //   fmt::throw_exception("internalPacketRead: wait failed");
+            cellSysutil.error("loop");
+            ret = sys_cond_wait(ppu, m->slotSync.nem_cond, 0);
+            if (ret != CELL_OK)
+               fmt::throw_exception("internalPacketRead: wait failed");
         }
+        cellSysutil.error("break");
+        u32 rawr = m->slotSync.sharedMemInfo->bytesWritten;
+        while (m->slotSync.sharedMemInfo->bytesWritten != 0) {
+            s32 tmp = m->slotSync.sharedMemInfo->unk3 - m->slotSync.sharedMemInfo->unk4;
 
-        u32 rawr = slotSync.sharedMemInfo->bytesWritten;
-        while (slotSync.sharedMemInfo->bytesWritten != 0) {
-            s32 tmp = slotSync.sharedMemInfo->unk3 - slotSync.sharedMemInfo->unk4;
-
-            if (slotSync.sharedMemInfo->unk3 <= slotSync.sharedMemInfo->unk4)
+            if (m->slotSync.sharedMemInfo->unk3 <= m->slotSync.sharedMemInfo->unk4)
             {
-                tmp = slotSync.sharedMemInfo->size - slotSync.sharedMemInfo->unk4;
+                tmp = m->slotSync.sharedMemInfo->size - m->slotSync.sharedMemInfo->unk4;
                 if (tmp > bufferLeft)
                     tmp = bufferLeft;
             }
-            else if (slotSync.sharedMemInfo->unk3 - slotSync.sharedMemInfo->unk4 <= bufferLeft)
+            else if (m->slotSync.sharedMemInfo->unk3 - m->slotSync.sharedMemInfo->unk4 <= bufferLeft)
             {
                 // purposely left empty
             }
             else {
                 tmp = bufferLeft;
             }
-            u32 addrSrc = slotSync.sharedAddr + slotSync.sharedMemInfo->unk4;
+            u32 addrSrc = m->slotSync.sharedAddr + m->slotSync.sharedMemInfo->unk4;
             std::memcpy(vm::base(addr), vm::base(addrSrc), tmp);
 
             bufferLeft -= tmp;
             addr += tmp;
-            slotSync.sharedMemInfo->unk4 += tmp;
+            m->slotSync.sharedMemInfo->unk4 += tmp;
 
-            if (slotSync.sharedMemInfo->unk4 >= slotSync.sharedMemInfo->size)
-                slotSync.sharedMemInfo->unk4 = 0;
+            if (m->slotSync.sharedMemInfo->unk4 >= m->slotSync.sharedMemInfo->size)
+                m->slotSync.sharedMemInfo->unk4 = 0;
 
-            slotSync.sharedMemInfo->bytesWritten -= tmp;
+            m->slotSync.sharedMemInfo->bytesWritten -= tmp;
 
             if (bufferLeft == 0)
                 break;
         }
 
-        if (slotSync.sharedMemInfo->unk6 == 2 && slotSync.sharedMemInfo->bytesWritten == 0) {
+        if (m->slotSync.sharedMemInfo->unk6 == 2 && m->slotSync.sharedMemInfo->bytesWritten == 0) {
             isDone = 1;
-            slotSync.sharedMemInfo->unk6 = 0;
-            slotSync.sharedMemInfo->unk7 = 0;
+            m->slotSync.sharedMemInfo->unk6 = 0;
+            m->slotSync.sharedMemInfo->unk7 = 0;
         }
 
-        internalThread->cmd_list
-        ({
-            { ppu_cmd::set_args, 1 }, u64{ slotSync.nfl_cond },
-            { ppu_cmd::hle_call, FIND_FUNC(sys_cond_signal) },
-        });
+        ret = sys_cond_signal(ppu, m->slotSync.nfl_cond);
+        if (ret != CELL_OK)
+           fmt::throw_exception("internalPacketRead: unlock failed 1");
 
-        //if (ret != CELL_OK)
-         //   fmt::throw_exception("internalPacketRead: unlock failed 1");
-
-        internalThread->cmd_list
-        ({
-            { ppu_cmd::set_args, 1 }, u64{ slotSync.shm_mutex },
-            { ppu_cmd::hle_call, FIND_FUNC(sys_mutex_unlock) },
-        });
-        
-        //if (ret != CELL_OK)
-        //   fmt::throw_exception("internalPacketRead: unlock failed2");
+        sys_mutex_unlock(ppu, m->slotSync.shm_mutex);
+        if (ret != CELL_OK)
+           fmt::throw_exception("internalPacketRead: unlock failed2");
     }
 
     if (isDone == 0)
@@ -378,31 +363,45 @@ s32 _ZN4cxml8Document16CreateFromBufferEPKvjb(vm::ptr<cxml_document> cxmlDoc, vm
 vm::cptr<char> GetStringAddrFromNameOffset(vm::ptr<cxml_document> doc, s32 nameOffset);
 u32 _ZN4cxml8Document18GetDocumentElementEv(vm::ptr<cxml_element> element, vm::ptr<cxml_document> doc);
 
-void sysutil_service_manager::on_task() {
+void sceVshSysutilService(ppu_thread& ppu) {
 
-    u32 sizeOfPacket = internalPacketRead();
-    // k we should hopefully have the packet now in our 'internal' memory
-    
-    s32 ret = _ZN4cxml8Document16CreateFromBufferEPKvjb(internalCxmlDoc, internalCxmlBuffer, sizeOfPacket, 0);
-    if (ret != CELL_OK)
-        fmt::throw_exception("sysutilService:createfrombuffer fail");
+    const auto m = fxm::get<sysutil_service_manager>();
 
-    if (std::memcmp(internalCxmlDoc->header.magic, "NPTR", 4) == 0) {
-        _ZN4cxml8Document18GetDocumentElementEv(internalCxmlElement, internalCxmlDoc);
-        if (internalCxmlElement->doc == vm::null)
-            fmt::throw_exception("sysutilservice, no root element");
+    while (!Emu.IsStopped()) {
 
-        const auto& element = vm::_ref<cxml_childelement_bin>(internalCxmlDoc->tree.addr() + internalCxmlElement->offset + sizeof(cxml_childelement_bin));
-        
-        auto str = GetStringAddrFromNameOffset(internalCxmlDoc, element.name);
-        if (str == vm::null)
-            fmt::throw_exception("sysutilservice: name is null");
-        if (std::memcmp(str.get_ptr(), "f", 0) != 0)
-            fmt::throw_exception("sysutilservice: wrong element, name=%s", str);
-        
+        u32 sizeOfPacket = internalPacketRead(ppu);
+        // k we should hopefully have the packet now in our 'internal' memory
+
+        s32 ret = _ZN4cxml8Document16CreateFromBufferEPKvjb(m->internalCxmlDoc, m->internalCxmlBuffer, sizeOfPacket, 0);
+        if (ret != CELL_OK)
+            fmt::throw_exception("sysutilService:createfrombuffer fail");
+
+        if (std::memcmp(m->internalCxmlDoc->header.magic, "NPTR", 4) == 0) {
+            _ZN4cxml8Document18GetDocumentElementEv(m->internalCxmlElement, m->internalCxmlDoc);
+            if (m->internalCxmlElement->doc == vm::null)
+                fmt::throw_exception("sysutilservice, no root element");
+
+            const auto& element = vm::_ref<cxml_childelement_bin>(m->internalCxmlDoc->tree.addr() + m->internalCxmlElement->offset + sizeof(cxml_childelement_bin));
+
+            auto str = GetStringAddrFromNameOffset(m->internalCxmlDoc, element.name);
+            if (str == vm::null)
+                fmt::throw_exception("sysutilservice: name is null");
+            if (std::memcmp(str.get_ptr(), "f", 0) != 0)
+                fmt::throw_exception("sysutilservice: wrong element, name=%s", str);
+
+        }
+        else
+            fmt::throw_exception("sysutilService unsupported packet");
     }
-    else
-        fmt::throw_exception("sysutilService unsupported packet");
+}
+
+std::shared_ptr<sysutil_service_manager> getSysutilServiceManager() {
+    auto m = fxm::get<sysutil_service_manager>();
+    if (!m) {
+        m = fxm::make<sysutil_service_manager>();
+        m->init();
+    }
+    return m;
 }
 
 struct sysutil_cb_manager
@@ -799,7 +798,7 @@ s32 cellSysutilPacketRead(ppu_thread& ppu, u32 slot, u32 evnt, u32 addr, u32 buf
     if (slot > 1)
         return CELL_SYSUTIL_ERROR_INVALID_PACKET_SLOT;
 
-    const auto m = fxm::get_always<sysutil_service_manager>();
+    const auto m = getSysutilServiceManager();
     if (m->slotSync.evnt != evnt)
         return CELL_SYSUTIL_ERROR_NO_PACKET_FOR_EVENT;
 
@@ -888,7 +887,7 @@ s32 cellSysutilPacketWrite(ppu_thread& ppu, u32 slot, u32 evnt, u32 addr, u32 si
     if (slot > 1)
         return CELL_SYSUTIL_ERROR_INVALID_PACKET_SLOT;
 
-    const auto m = fxm::get_always<sysutil_service_manager>();
+    const auto m = getSysutilServiceManager();
     if (m->slotSync.evnt != evnt)
         return CELL_SYSUTIL_ERROR_NO_PACKET_FOR_EVENT;
     
@@ -972,7 +971,7 @@ s32 cellSysutilPacketBegin(ppu_thread& ppu, u32 slot, u32 evnt)
     if (slot == 0)
         fmt::throw_exception("unimplemented slot... deal with slot 0");
 
-    const auto m = fxm::get_always<sysutil_service_manager>();
+    const auto m = getSysutilServiceManager();
 
     error_code ret = sys_mutex_lock(ppu, m->slotSync.shm_mutex, 0);
     if (ret != CELL_OK)
@@ -1005,7 +1004,7 @@ s32 cellSysutilPacketBegin(ppu_thread& ppu, u32 slot, u32 evnt)
 u32 cellSysutil_B47470E1(u32 slot)
 {
     cellSysutil.todo("cellSysutil_B47470E1(slot=0x%x)", slot);
-    const auto m = fxm::get_always<sysutil_service_manager>();
+    const auto m = getSysutilServiceManager();
 
     // todo: deal with the multiple spots
     if (m->packetMemInUse.compare_and_swap_test(false, true))
@@ -1017,7 +1016,7 @@ u32 cellSysutil_B47470E1(u32 slot)
 void cellSysutil_40719C8C(u32 slot)
 {
     cellSysutil.todo("cellSysutil_40719C8C(slot=0x%x)", slot);
-    const auto m = fxm::get_always<sysutil_service_manager>();
+    const auto m = getSysutilServiceManager();
 
     m->packetMemInUse = false;
 }
@@ -1032,7 +1031,7 @@ s32 cellSysutilPacketEnd(ppu_thread& ppu, u32 slot, u32 evnt)
     if (slot == 0)
         fmt::throw_exception("unimplemented slot... deal with slot 0");
 
-    const auto m = fxm::get_always<sysutil_service_manager>();
+    const auto m = getSysutilServiceManager();
 
     error_code ret = sys_mutex_lock(ppu, m->slotSync.shm_mutex, 0);
     if (ret != CELL_OK)
@@ -1097,7 +1096,7 @@ void cellSysutil_B59872EF(u32 allocType, vm::ptr<void> userData, vm::ptr<void> o
 {
     cellSysutil.trace("cellSysutil_B59872EF(allocType=%d, userData=*0x%x, oldAddr=*0x%x, reqSize=%d, addr=*0x%x, size=*0x%x)", allocType, userData, oldAddr, requiredSize, addr, size);
     // todo: use userData memaddr
-    const auto m = fxm::get_always<sysutil_service_manager>();
+    const auto m = getSysutilServiceManager();
     if (size != vm::null)
         *size = 0;
     if (addr != vm::null)
@@ -2063,4 +2062,7 @@ DECLARE(ppu_module_manager::cellSysutil)("cellSysutil", []()
     REG_FNID(cellSysutil, 0xB59872EF, cellSysutil_B59872EF);
 
     REG_FNID(cellSysutil, 0x7FC8F72C, cellSysutil_7FC8F72C);
+
+    // Special
+    REG_FUNC(cellSysutil, sceVshSysutilService).flags = MFF_HIDDEN;
 });
