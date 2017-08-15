@@ -3,7 +3,7 @@
 #include "Emu/IdManager.h"
 #include "Emu/Cell/PPUModule.h"
 
-#include "Emu/Io/PadHandler.h"
+#include "pad_thread.h"
 #include "cellPad.h"
 
 extern logs::channel sys_io;
@@ -12,7 +12,7 @@ s32 cellPadInit(u32 max_connect)
 {
 	sys_io.warning("cellPadInit(max_connect=%d)", max_connect);
 
-	const auto handler = fxm::import<PadHandlerBase>(Emu.GetCallbacks().get_pad_handler);
+	const auto handler = fxm::import<pad_thread>(Emu.GetCallbacks().get_pad_handler);
 
 	if (!handler)
 		return CELL_PAD_ERROR_ALREADY_INITIALIZED;
@@ -26,7 +26,7 @@ s32 cellPadEnd()
 {
 	sys_io.notice("cellPadEnd()");
 
-	if (!fxm::remove<PadHandlerBase>())
+	if (!fxm::remove<pad_thread>())
 		return CELL_PAD_ERROR_UNINITIALIZED;
 
 	return CELL_OK;
@@ -36,7 +36,7 @@ s32 cellPadClearBuf(u32 port_no)
 {
 	sys_io.trace("cellPadClearBuf(port_no=%d)", port_no);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -73,7 +73,7 @@ s32 cellPadGetData(u32 port_no, vm::ptr<CellPadData> data)
 {
 	sys_io.trace("cellPadGetData(port_no=%d, data=*0x%x)", port_no, data);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -280,7 +280,7 @@ s32 cellPadPeriphGetInfo(vm::ptr<CellPadPeriphInfo> info)
 {
 	sys_io.trace("cellPadPeriphGetInfo(info=*0x%x)", info);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -315,7 +315,7 @@ s32 cellPadPeriphGetInfo(vm::ptr<CellPadPeriphInfo> info)
 s32 cellPadPeriphGetData(u32 port_no, vm::ptr<CellPadPeriphData> data)
 {
 	sys_io.trace("cellPadPeriphGetData(port_no=%d, data=*0x%x)", port_no, data);
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -342,7 +342,7 @@ s32 cellPadGetDataExtra(u32 port_no, vm::ptr<u32> device_type, vm::ptr<CellPadDa
 {
 	sys_io.trace("cellPadGetDataExtra(port_no=%d, device_type=*0x%x, device_type=*0x%x)", port_no, device_type, data);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -370,7 +370,7 @@ s32 cellPadSetActDirect(u32 port_no, vm::ptr<CellPadActParam> param)
 {
 	sys_io.trace("cellPadSetActDirect(port_no=%d, param=*0x%x)", port_no, param);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -391,7 +391,7 @@ s32 cellPadGetInfo(vm::ptr<CellPadInfo> info)
 {
 	sys_io.trace("cellPadGetInfo(info=*0x%x)", info);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -423,7 +423,7 @@ s32 cellPadGetInfo2(vm::ptr<CellPadInfo2> info)
 {
 	sys_io.trace("cellPadGetInfo2(info=*0x%x)", info);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -456,7 +456,7 @@ s32 cellPadGetCapabilityInfo(u32 port_no, vm::ptr<CellCapabilityInfo> info)
 {
 	sys_io.trace("cellPadGetCapabilityInfo(port_no=%d, data_addr:=0x%x)", port_no, info.addr());
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -480,7 +480,7 @@ s32 cellPadSetPortSetting(u32 port_no, u32 port_setting)
 {
 	sys_io.trace("cellPadSetPortSetting(port_no=%d, port_setting=0x%x)", port_no, port_setting);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -502,7 +502,7 @@ s32 cellPadInfoPressMode(u32 port_no)
 {
 	sys_io.trace("cellPadInfoPressMode(port_no=%d)", port_no);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -523,7 +523,7 @@ s32 cellPadInfoSensorMode(u32 port_no)
 {
 	sys_io.trace("cellPadInfoSensorMode(port_no=%d)", port_no);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -544,7 +544,7 @@ s32 cellPadSetPressMode(u32 port_no, u32 mode)
 {
 	sys_io.trace("cellPadSetPressMode(port_no=%d, mode=%d)", port_no, mode);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -573,7 +573,7 @@ s32 cellPadSetSensorMode(u32 port_no, u32 mode)
 {
 	sys_io.trace("cellPadSetSensorMode(port_no=%d, mode=%d)", port_no, mode);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -602,7 +602,7 @@ s32 cellPadLddRegisterController()
 {
 	sys_io.todo("cellPadLddRegisterController()");
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -614,7 +614,7 @@ s32 cellPadLddDataInsert(s32 handle, vm::ptr<CellPadData> data)
 {
 	sys_io.todo("cellPadLddDataInsert(handle=%d, data=*0x%x)", handle, data);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -626,7 +626,7 @@ s32 cellPadLddGetPortNo(s32 handle)
 {
 	sys_io.todo("cellPadLddGetPortNo(handle=%d)", handle);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
@@ -638,7 +638,7 @@ s32 cellPadLddUnregisterController(s32 handle)
 {
 	sys_io.todo("cellPadLddUnregisterController(handle=%d)", handle);
 
-	const auto handler = fxm::get<PadHandlerBase>();
+	const auto handler = fxm::get<pad_thread>();
 
 	if (!handler)
 		return CELL_PAD_ERROR_UNINITIALIZED;
