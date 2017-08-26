@@ -15,11 +15,6 @@
 
 evdev_joystick_config g_evdev_joystick_config;
 
-namespace
-{
-    const u32 MAX_GAMEPADS = 7;
-}
-
 evdev_joystick_handler::evdev_joystick_handler() {}
 
 evdev_joystick_handler::~evdev_joystick_handler() { Close(); }
@@ -202,8 +197,7 @@ std::vector<std::string> evdev_joystick_handler::ListDevices()
     fs::dir devdir{"/dev/input/"};
     fs::dir_entry et;
 
-    int i = 0;
-    while (devdir.read(et) && i < MAX_GAMEPADS)
+    while (devdir.read(et))
     {
         // Check if the entry starts with event (a 5-letter word)
         if (et.name.size() > 5 && et.name.compare(0, 5,"event") == 0)
@@ -226,10 +220,7 @@ std::vector<std::string> evdev_joystick_handler::ListDevices()
                 libevdev_has_event_code(dev, EV_ABS, ABS_Y))
             {
                 // It's a joystick.
-                size_t lastIndex = et.name.find_last_not_of("0123456789");
-                std::string eventNum = et.name.substr(lastIndex + 1);
-                evdev_joystick_list.push_back(fmt::format("%s-%s", libevdev_get_name(dev), eventNum));
-                i++;
+                evdev_joystick_list.push_back(libevdev_get_name(dev));
             }
             libevdev_free(dev);
             close(fd);
@@ -241,10 +232,59 @@ std::vector<std::string> evdev_joystick_handler::ListDevices()
 bool evdev_joystick_handler::bindPadToDevice(Pad *pad, const std::string& device)
 {
         Init();
-        size_t lastIndex = device.find_last_not_of("0123456789");
-        int eventNum = stoi(device.substr(lastIndex + 1));
 
-        joy_paths.emplace_back(fmt::format("/dev/input/event%d", eventNum));
+        // Now we need to find the device with the same name, and make sure not to grab any duplicates.
+        fs::dir devdir{"/dev/input/"};
+        fs::dir_entry et;
+        while (devdir.read(et))
+        {
+            // Check if the entry starts with event (a 5-letter word)
+            if (et.name.size() > 5 && et.name.compare(0, 5,"event") == 0)
+            {
+                int fd = open(("/dev/input/" + et.name).c_str(), O_RDONLY|O_NONBLOCK);
+                struct libevdev *dev = NULL;
+                int rc = 1;
+                rc = libevdev_new_from_fd(fd, &dev);
+                if (rc < 0)
+                {
+                    // If it's just a bad file descriptor, don't bother logging, but otherwise, log it.
+                    if (rc == -9)
+                        LOG_WARNING(GENERAL, "Failed to connect to device at %s, the error was: %s", "/dev/input/" + et.name, strerror(-rc));
+                    libevdev_free(dev);
+                    close(fd);
+                    continue;
+                }
+                const std::string name = libevdev_get_name(dev);
+                if (libevdev_has_event_type(dev, EV_KEY) &&
+                    libevdev_has_event_code(dev, EV_ABS, ABS_X) &&
+                    libevdev_has_event_code(dev, EV_ABS, ABS_Y) &&
+                    name == device)
+                {
+                    // It's a joystick.
+
+                    // Now let's make sure we don't already have this one.
+                    bool alreadyIn = false;
+                    for (int i = 0; i < joy_paths.size(); i++)
+                        if (joy_paths[i] == fmt::format("/dev/input/%s", et.name))
+                        {
+                            alreadyIn = true;
+                            break;
+                        }
+                    if (alreadyIn == true)
+                    {
+                        libevdev_free(dev);
+                        close(fd);
+                        continue;
+                    }
+
+                    // Alright, now that we've confirmed we haven't added this joystick yet, les do dis.
+                    joy_paths.emplace_back(fmt::format("/dev/input/%s", et.name));
+                }
+                libevdev_free(dev);
+                close(fd);
+            }
+        }
+
         joy_devs.push_back(nullptr);
         joy_axis_maps.emplace_back(ABS_RZ - ABS_X, -1);
         joy_axis.emplace_back(ABS_RZ - ABS_X, -1);
