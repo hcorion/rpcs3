@@ -33,7 +33,6 @@ void FragmentProgramDecompiler::SetDst(std::string code, bool append_mask)
 
 	default:
 		LOG_ERROR(RSX, "Bad scale: %d", u32{ src1.scale });
-		Emu.Pause();
 		break;
 	}
 
