@@ -758,6 +758,14 @@ std::string FragmentProgramDecompiler::Decompile()
 		data += m_offset / sizeof(u32);
 	}
 
+	while (m_code_level > 1)
+	{
+		LOG_ERROR(RSX, "Hanging block found at end of shader. Malformed shader?");
+
+		m_code_level--;
+		AddCode("}");
+	}
+
 	// flush m_code_level
 	m_code_level = 1;
 	std::string m_shader = BuildCode();
