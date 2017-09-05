@@ -548,7 +548,7 @@ bool FragmentProgramDecompiler::handle_tex_srb(u32 opcode)
 			if (DstExpectsSca() && (m_prog.shadow_textures & (1 << dst.tex_num)))
 			{
 				m_shadow_sampled_textures |= (1 << dst.tex_num);
-				SetDst(getFunction(FUNCTION::FUNCTION_TEXTURE_SAMPLE2D_PROJ), false);	//No swizzle mask on shadow lookup
+				SetDst(getFunction(FUNCTION::FUNCTION_TEXTURE_SAMPLE2D_PROJ) + ".r", false);	//No swizzle mask on shadow lookup
 			}
 			else
 				SetDst(getFunction(FUNCTION::FUNCTION_TEXTURE_SAMPLE2D_PROJ));
