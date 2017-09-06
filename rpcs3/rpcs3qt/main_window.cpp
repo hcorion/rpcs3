@@ -63,7 +63,7 @@ auto Pause = []()
 	else if (!Emu.GetPath().empty()) Emu.Load();
 };
 
-/* An init method is used so that RPCS3App can create the necessary connects before calling init (specifically the stylesheet connect).  
+/* An init method is used so that RPCS3App can create the necessary connects before calling init (specifically the stylesheet connect).
  * Simplifies logic a bit.
  */
 void main_window::Init()
@@ -85,6 +85,7 @@ void main_window::Init()
 
 	// for highdpi resize toolbar icons and height dynamically
 	// choose factors to mimic Gui-Design in main_window.ui
+	updateGeometry();
 	const int toolBarHeight = menuBar()->sizeHint().height() * 1.5;
 	ui->toolBar->setIconSize(QSize(toolBarHeight, toolBarHeight));
 	ui->sizeSliderContainer->setFixedWidth(toolBarHeight * 5);
@@ -104,7 +105,7 @@ void main_window::Init()
 	ConfigureGuiFromSettings(true);
 	RepaintToolBarIcons();
 	gameListFrame->RepaintToolBarIcons();
-	
+
 	if (!utils::has_ssse3())
 	{
 		QMessageBox::critical(this, "SSSE3 Error (with three S, not two)",
@@ -202,7 +203,7 @@ void main_window::SetAppIconFromPath(const std::string path)
 				// load the image from path. It will most likely be a rectangle
 				QImage source = QImage(qstr(ico));
 				int edgeMax = std::max(source.width(), source.height());
-				
+
 				// create a new transparent image with square size and same format as source (maybe handle other formats than RGB32 as well?)
 				QImage::Format format = source.format() == QImage::Format_RGB32 ? QImage::Format_ARGB32 : source.format();
 				QImage dest = QImage(edgeMax, edgeMax, format);
@@ -244,7 +245,7 @@ void main_window::BootElf()
 		"SELF files (EBOOT.BIN *.self);;"
 		"BOOT files (*BOOT.BIN);;"
 		"BIN files (*.bin);;"
-		"All files (*.*)"), 
+		"All files (*.*)"),
 		Q_NULLPTR, QFileDialog::DontResolveSymlinks);
 
 	if (filePath == NULL)
@@ -376,7 +377,7 @@ void main_window::InstallPkg(const QString& dropPath)
 	{
 		if (fs::is_dir(local_path))
 		{
-			if (QMessageBox::question(this, tr("PKG Decrypter / Installer"), tr("Another installation found. Do you want to overwrite it?"),	
+			if (QMessageBox::question(this, tr("PKG Decrypter / Installer"), tr("Another installation found. Do you want to overwrite it?"),
 				QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
 			{
 				LOG_ERROR(LOADER, "PKG: Cancelled installation to existing directory %s", local_path);
@@ -591,7 +592,7 @@ void main_window::InstallPup(const QString& dropPath)
 #ifdef _WIN32
 				taskbar_progress->hide();
 				taskbar_button->~QWinTaskbarButton();
-#endif				
+#endif
 				break;
 			}
 			// Update progress window
@@ -684,7 +685,7 @@ void main_window::DecryptSPRXLibraries()
 	LOG_NOTICE(GENERAL, "Finished decrypting all SPRX libraries.");
 }
 
-/** Needed so that when a backup occurs of window state in guisettings, the state is current. 
+/** Needed so that when a backup occurs of window state in guisettings, the state is current.
 * Also, so that on close, the window state is preserved.
 */
 void main_window::SaveWindowState()
@@ -729,7 +730,7 @@ void main_window::RepaintToolBarIcons()
 	ui->toolbar_snap->setIcon(gui_settings::colorizedIcon(QIcon(":/Icons/screenshot.png"), GUI::mw_tool_icon_color, newColor));
 	ui->toolbar_sort->setIcon(gui_settings::colorizedIcon(QIcon(":/Icons/sort.png"), GUI::mw_tool_icon_color, newColor));
 	ui->toolbar_stop->setIcon(gui_settings::colorizedIcon(QIcon(":/Icons/stop.png"), GUI::mw_tool_icon_color, newColor));
-	
+
 	if (Emu.IsRunning())
 	{
 		ui->toolbar_start->setIcon(icon_pause);
@@ -742,7 +743,7 @@ void main_window::RepaintToolBarIcons()
 	{
 		ui->toolbar_start->setIcon(icon_play);
 	}
-	
+
 	if (isFullScreen())
 	{
 		ui->toolbar_fullscreen->setIcon(icon_fullscreen_on);
@@ -970,7 +971,7 @@ QAction* main_window::CreateRecentAction(const q_string_pair& entry, const uint&
 	act->setData(entry.first);
 	act->setToolTip(entry.second);
 	act->setShortcut(tr("Ctrl+%1").arg(sc_idx));
-	
+
 	// truncate if too long
 	if (shown_name.length() > 60)
 	{
@@ -1029,7 +1030,7 @@ void main_window::AddRecentAction(const q_string_pair& entry)
 		m_rg_entries.prepend(entry);
 		m_recentGameActs.prepend(act);
 	}
-	
+
 	// refill menu with actions
 	for (int i = 0; i < m_recentGameActs.count(); i++)
 	{
@@ -1077,7 +1078,7 @@ void main_window::CreateActions()
 	ui->toolbar_start->setEnabled(false);
 	ui->toolbar_stop->setEnabled(false);
 
-	categoryVisibleActGroup = new QActionGroup(this); 
+	categoryVisibleActGroup = new QActionGroup(this);
 	categoryVisibleActGroup->addAction(ui->showCatHDDGameAct);
 	categoryVisibleActGroup->addAction(ui->showCatDiscGameAct);
 	categoryVisibleActGroup->addAction(ui->showCatHomeAct);
@@ -1537,7 +1538,7 @@ void main_window::mouseDoubleClickEvent(QMouseEvent *event)
 	}
 }
 
-/** Override the Qt close event to have the emulator stop and the application die.  May add a warning dialog in future. 
+/** Override the Qt close event to have the emulator stop and the application die.  May add a warning dialog in future.
 */
 void main_window::closeEvent(QCloseEvent* closeEvent)
 {
