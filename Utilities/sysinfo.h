@@ -28,26 +28,7 @@ namespace utils
 
 	inline bool has_rtm()
 	{
-		// Check RTM and MPX extensions in order to filter out TSX on Haswell CPUs
-		return get_cpuid(0, 0)[0] >= 0x7 && (get_cpuid(7, 0)[1] & 0x4800) == 0x4800;
-	}
-
-	inline bool transaction_enter()
-	{
-		while (true)
-		{
-			const auto status = _xbegin();
-
-			if (status == _XBEGIN_STARTED)
-			{
-				return true;
-			}
-
-			if (!(status & _XABORT_RETRY))
-			{
-				return false;
-			}
-		}
+		return get_cpuid(0, 0)[0] >= 0x7 && get_cpuid(7, 0)[1] & 0x800;
 	}
 
 	std::string get_system_info();
