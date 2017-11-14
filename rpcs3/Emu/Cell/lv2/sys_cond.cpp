@@ -28,6 +28,8 @@ error_code sys_cond_create(vm::ptr<u32> cond_id, u32 mutex_id, vm::ptr<sys_cond_
 		return CELL_ESRCH;
 	}
 
+	sys_cond.warning("sys_cond_create(): name 0x%llx", attr->name_u64);
+
 	if (auto error = lv2_obj::create<lv2_cond>(attr->pshared, attr->ipc_key, attr->flags, [&]
 	{
 		return std::make_shared<lv2_cond>(

@@ -116,7 +116,7 @@ error_code sys_lwmutex_lock(ppu_thread& ppu, vm::ptr<sys_lwmutex_t> lwmutex, u64
 	{
 		// recursive locking
 
-		if ((lwmutex->attribute & SYS_SYNC_RECURSIVE) == 0)
+		if (lwmutex->attribute & SYS_SYNC_NOT_RECURSIVE)
 		{
 			// if not recursive
 			return CELL_EDEADLK;
@@ -217,7 +217,7 @@ error_code sys_lwmutex_trylock(ppu_thread& ppu, vm::ptr<sys_lwmutex_t> lwmutex)
 	{
 		// recursive locking
 
-		if ((lwmutex->attribute & SYS_SYNC_RECURSIVE) == 0)
+		if (lwmutex->attribute & SYS_SYNC_NOT_RECURSIVE)
 		{
 			// if not recursive
 			return CELL_EDEADLK;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utilities/Thread.h"
+#include "sys_event.h"
 
 // Timer State
 enum : u32

@@ -1711,6 +1711,10 @@ void thread_ctrl::_push(task_stack task)
 
 bool thread_ctrl::_wait_for(u64 usec)
 {
+	if ((s64)usec < -1)
+	{
+		__debugbreak();
+	}
 	auto _this = g_tls_this_thread;
 
 	struct half_lock

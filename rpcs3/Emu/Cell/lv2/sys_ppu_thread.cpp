@@ -197,10 +197,19 @@ error_code sys_ppu_thread_set_priority(ppu_thread& ppu, u32 thread_id, s32 prio)
 {
 	sys_ppu_thread.trace("sys_ppu_thread_set_priority(thread_id=0x%x, prio=%d)", thread_id, prio);
 
-	if (prio < 0 || prio > 3071)
+	if (prio > 3071)
 	{
 		return CELL_EINVAL;
 	}
+	else if (prio < 0)
+	{
+		if (prio < -0x200 /* || !access_check*/)
+		{
+			return CELL_EINVAL;
+		}
+	}
+	prio += 0x200;
+
 
 	const auto thread = idm::check<ppu_thread>(thread_id, [&](ppu_thread& thread)
 	{
@@ -224,7 +233,7 @@ error_code sys_ppu_thread_get_priority(u32 thread_id, vm::ptr<s32> priop)
 
 	const auto thread = idm::check<ppu_thread>(thread_id, [&](ppu_thread& thread)
 	{
-		*priop = thread.prio;
+		*priop = thread.prio - 0x200;
 	});
 
 	if (!thread)
@@ -278,7 +287,13 @@ error_code _sys_ppu_thread_create(vm::ptr<u64> thread_id, vm::ptr<ppu_thread_par
 	sys_ppu_thread.warning("_sys_ppu_thread_create(thread_id=*0x%x, param=*0x%x, arg=0x%llx, unk=0x%llx, prio=%d, stacksize=0x%x, flags=0x%llx, threadname=%s)",
 		thread_id, param, arg, unk, prio, stacksize, flags, threadname);
 
-	if (prio < 0 || prio > 3071)
+	if (prio > 3071)
+	{
+		return CELL_EINVAL;
+	}
+
+	prio += 0x200;
+	if (prio < 0 /*|| prio < 0x200 && !access_check*/)
 	{
 		return CELL_EINVAL;
 	}

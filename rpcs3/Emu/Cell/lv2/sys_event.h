@@ -27,6 +27,7 @@ enum : u64
 enum : s32
 {
 	SYS_EVENT_PORT_LOCAL = 1,
+	SYS_EVENT_PORT_IPC = 3
 };
 
 // Event Port Name

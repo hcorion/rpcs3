@@ -157,11 +157,12 @@ namespace GUI
 	const GUI_SAVE gl_toolBarVisible = GUI_SAVE( game_list, "toolBarVisible", false);
 	const GUI_SAVE gl_toolIconColor  = GUI_SAVE( game_list, "toolIconColor",  gl_tool_icon_color);
 
-	const GUI_SAVE fs_emulator_dir_list = GUI_SAVE( fs, "emulator_dir_list", QStringList());
-	const GUI_SAVE fs_dev_hdd0_list     = GUI_SAVE( fs, "dev_hdd0_list",     QStringList());
-	const GUI_SAVE fs_dev_hdd1_list     = GUI_SAVE( fs, "dev_hdd1_list",     QStringList());
-	const GUI_SAVE fs_dev_flash_list    = GUI_SAVE( fs, "dev_flash_list",    QStringList());
-	const GUI_SAVE fs_dev_usb000_list   = GUI_SAVE( fs, "dev_usb000_list",   QStringList());
+	const GUI_SAVE fs_emulator_dir_list = GUI_SAVE(fs, "emulator_dir_list", QStringList());
+	const GUI_SAVE fs_dev_hdd0_list     = GUI_SAVE(fs, "dev_hdd0_list",     QStringList());
+	const GUI_SAVE fs_dev_hdd1_list     = GUI_SAVE(fs, "dev_hdd1_list",     QStringList());
+	const GUI_SAVE fs_dev_flash_list    = GUI_SAVE(fs, "dev_flash_list",    QStringList());
+	const GUI_SAVE fs_dev_flash2_list   = GUI_SAVE(fs, "dev_flash2_list",   QStringList());
+	const GUI_SAVE fs_dev_usb000_list   = GUI_SAVE(fs, "dev_usb000_list",   QStringList());
 
 	const GUI_SAVE l_tty   = GUI_SAVE( logger, "TTY",   true );
 	const GUI_SAVE l_level = GUI_SAVE( logger, "level", (uint)(logs::level::success) );

@@ -7,6 +7,7 @@
 #include "Emu/Cell/ErrorCodes.h"
 #include "Emu/Cell/PPUThread.h"
 #include "sys_event_flag.h"
+#include "sys_event.h"
 
 #include <algorithm>
 

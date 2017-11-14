@@ -95,7 +95,7 @@ s32 cellMsgDialogOpen2(u32 type, vm::cptr<char> msgString, vm::ptr<CellMsgDialog
 				{
 					callback(ppu, status, userData);
 					return CELL_OK;
-				});
+				}, callback.addr());
 			}
 
 			fxm::remove<MsgDialogBase>();

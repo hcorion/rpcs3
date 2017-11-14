@@ -119,6 +119,7 @@ error_code sys_event_queue_create(vm::ptr<u32> equeue_id, vm::ptr<sys_event_queu
 		if (const u32 _id = idm::import_existing<lv2_obj, lv2_event_queue>(queue))
 		{
 			*equeue_id = _id;
+			sys_event.warning("sys_event_queue_create() created 0x%x", _id);
 			return std::move(queue);
 		}
 
@@ -325,8 +326,15 @@ error_code sys_event_port_create(vm::ptr<u32> eport_id, s32 port_type, u64 name)
 
 	if (port_type != SYS_EVENT_PORT_LOCAL && port_type != 3)
 	{
-		sys_event.error("sys_event_port_create(): unknown port type (%d)", port_type);
-		return CELL_EINVAL;
+		if (port_type == SYS_EVENT_PORT_IPC)
+		{
+			sys_event.warning("sys_event_port_create(): Creating an IPC port, WIP");
+		}
+		else
+		{
+			sys_event.error("sys_event_port_create(): unknown port type (%d)", port_type);
+			return CELL_EINVAL;
+		}
 	}
 
 	if (const u32 id = idm::make<lv2_obj, lv2_event_port>(port_type, name))

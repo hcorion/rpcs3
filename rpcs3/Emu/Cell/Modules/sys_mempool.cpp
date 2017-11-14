@@ -81,7 +81,7 @@ s32 sys_mempool_create(ppu_thread& ppu, vm::ptr<sys_mempool_t> mempool, vm::ptr<
 	vm::var<u32> mutexid;
 	vm::var<sys_mutex_attribute_t> attr;
 	attr->protocol = SYS_SYNC_PRIORITY;
-	attr->recursive = SYS_SYNC_NOT_RECURSIVE;
+	attr->recursive = SYS_SYNC_RECURSIVE;
 	attr->pshared = SYS_SYNC_NOT_PROCESS_SHARED;
 	attr->adaptive = SYS_SYNC_NOT_ADAPTIVE;
 	attr->ipc_key = 0; // No idea what this is

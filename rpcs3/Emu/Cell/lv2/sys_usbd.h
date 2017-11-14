@@ -12,7 +12,7 @@ s32 sys_usbd_unregister_ldd();
 s32 sys_usbd_open_pipe();
 s32 sys_usbd_open_default_pipe();
 s32 sys_usbd_close_pipe();
-s32 sys_usbd_receive_event();
+s32 sys_usbd_receive_event(u32 unk1, vm::ps3::ptr<u64> unk2, vm::ps3::ptr<void> unk3, vm::ps3::ptr<void> unk4);
 s32 sys_usbd_detect_event();
 s32 sys_usbd_attach();
 s32 sys_usbd_transfer_data();

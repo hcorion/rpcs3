@@ -69,9 +69,10 @@ s32 sys_usbd_close_pipe()
 	return CELL_OK;
 }
 
-s32 sys_usbd_receive_event()
+s32 sys_usbd_receive_event(u32 unk1, vm::ptr<u64> unk2, vm::ps3::ptr<void> unk3, vm::ps3::ptr<void> unk4)
 {
-	sys_usbd.todo("sys_usbd_receive_event()");
+	sys_usbd.trace("sys_usbd_receive_event(0x%x, 0x%x, 0x%x, 0x%x)", unk1, unk2, unk3, unk4);
+	*unk2 = 4; // Causes the looping thread to close
 	return CELL_OK;
 }
 

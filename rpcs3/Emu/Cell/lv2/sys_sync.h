@@ -175,6 +175,7 @@ struct lv2_obj
 
 				if (!result)
 				{
+					fmt::format("Failed finding object with IPC key: 0x%llx", ipc_key);
 					return CELL_ESRCH;
 				}
 

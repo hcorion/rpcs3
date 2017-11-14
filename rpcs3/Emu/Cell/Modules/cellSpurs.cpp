@@ -1140,7 +1140,7 @@ s32 _spurs::initialize(ppu_thread& ppu, vm::ptr<CellSpurs> spurs, u32 revision, 
 	const auto lwCond  = spurs.ptr(&CellSpurs::cond);
 
 	// Create a mutex to protect access to SPURS handler thread data
-	if (s32 rc = sys_lwmutex_create(lwMutex, vm::make_var(sys_lwmutex_attribute_t{ SYS_SYNC_PRIORITY, SYS_SYNC_NOT_RECURSIVE, "_spuPrv" })))
+	if (s32 rc = sys_lwmutex_create(lwMutex, vm::make_var(sys_lwmutex_attribute_t{ SYS_SYNC_PRIORITY, SYS_SYNC_RECURSIVE, "_spuPrv" })))
 	{
 		_spurs::finalize_spu(ppu, spurs);
 		return rollback(), rc;
@@ -1794,6 +1794,33 @@ s32 cellSpursUnsetGlobalExceptionEventHandler(vm::ptr<CellSpurs> spurs)
 /// Get internal information of a SPURS instance
 s32 cellSpursGetInfo(vm::ptr<CellSpurs> spurs, vm::ptr<CellSpursInfo> info)
 {
+	if (!spurs || !info)
+	{
+		return CELL_SPURS_CORE_ERROR_NULL_POINTER;
+	}
+
+	if (!spurs.aligned())
+	{
+		return CELL_SPURS_CORE_ERROR_ALIGN;
+	}
+
+	info->nSpus = spurs->nSpus;
+	info->spuThreadGroupPriority = spurs->spuPriority;
+	info->ppuThreadPriority = spurs->ppuPriority;
+	info->exitIfNoWork = false; // TODO
+	// spurs2
+	info->traceBuffer = spurs->traceBuffer;
+	info->traceBufferSize = spurs->traceDataSize;
+	info->traceMode = spurs->traceMode;
+	info->spuThreadGroup = spurs->spuTG;
+	memcpy(info->spuThreads, spurs->spus, sizeof(info->spuThreads));
+	info->spursHandlerThread0 = spurs->ppu0;
+	info->spursHandlerThread1 = spurs->ppu1;
+	memcpy(info->namePrefix, spurs->prefix, sizeof(spurs->prefix)); // ?? Yeah?
+	info->namePrefixLength = spurs->prefixSize;
+	// deadlineMissCounter
+	// deadlineMeetCounter
+
 	UNIMPLEMENTED_FUNC(cellSpurs);
 	return CELL_OK;
 }

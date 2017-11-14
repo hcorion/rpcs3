@@ -167,6 +167,7 @@ s32 _sys_process_get_paramsfo(vm::ptr<char> buffer)
 
 	if (!Emu.GetTitleID().length())
 	{
+		sys_process.error("_sys_process_get_paramsfo empty title ID");
 		return CELL_ENOENT;
 	}
 

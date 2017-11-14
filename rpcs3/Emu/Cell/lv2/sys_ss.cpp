@@ -73,12 +73,54 @@ s32 sys_ss_get_console_id(vm::ps3::ptr<u8> buf)
 	return CELL_OK;
 }
 
-s32 sys_ss_get_open_psid(vm::ps3::ptr<CellSsOpenPSID> psid) 
+s32 sys_ss_get_open_psid(vm::ps3::ptr<CellSsOpenPSID> psid)
 {
 	sys_ss.warning("sys_ss_get_open_psid(psid=*0x%x)", psid);
 
 	psid->high = 0;
 	psid->low = 0;
+
+	return CELL_OK;
+}
+
+s32 sys_ss_363(u32 code, vm::ptr<u8> buffer)
+{
+	switch (code)
+	{
+	case 0x19004:
+	{
+		sys_ss.warning("sys_ss_363(code=0x%x (PSCODE), buffer=*0x%x)", code, buffer);
+		u8 pscode[] = { 0x00, 0x01, 0x00, 0x85, 0x00, 0x07, 0x00, 0x04 };
+		memcpy(buffer.get_ptr(), pscode, 8);
+		break;
+	}
+	default:
+		sys_ss.todo("sys_ss_363(code=0x%x, buffer=*0x%x)", code, buffer);
+	}
+	return CELL_OK;
+}
+
+s32 sys_ss_access_control_engine(u32 a, u32 b, u32 c)
+{
+	sys_ss.todo("sys_ss_access_control_engine(0x%x, 0x%x, 0x%x)", a, b, c);
+
+	return CELL_OK;
+}
+
+s32 sys_ss_get_cache_of_product_mode(vm::ptr<u32/*vm::ptr<char>*/> ptr)
+{
+	sys_ss.todo("UNIMPLEMENTED sys_ss_get_cache_of_product_mode(0x%x)", ptr);
+	s32 pid = 1;
+
+	if (false /*process == null*/)
+	{
+		return 0x80010003;
+	}
+	if (!ptr)
+	{
+		return 0x80010002;
+	}
+	*ptr = -1; // Happens when hypervisor call returns an error
 
 	return CELL_OK;
 }
