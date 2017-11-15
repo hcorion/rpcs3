@@ -26,7 +26,8 @@ namespace gl
 		{
 			std::string vs =
 			{
-				"#version 420\n"
+				"#version 410 core\n"
+				"#extension GL_ARB_explicit_uniform_location: enable\n"
 				"#extension GL_ARB_shader_draw_parameters: enable\n"
 				"layout(location=0) in vec2 pos;\n"
 				"uniform vec2 offsets[255];\n"
@@ -42,7 +43,8 @@ namespace gl
 
 			std::string fs =
 			{
-				"#version 420\n"
+				"#version 410 core\n"
+				"#extension GL_ARB_explicit_uniform_location: enable\n"
 				"layout(location=0) out vec4 col0;\n"
 				"uniform vec4 draw_color;\n"
 				"\n"

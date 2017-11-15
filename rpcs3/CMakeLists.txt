@@ -162,7 +162,7 @@ endif()
 
 set(CMAKE_MODULE_PATH "${RPCS3_SRC_DIR}/cmake_modules")
 
-find_package(OpenGL REQUIRED)
+#find_package(OpenGL REQUIRED)
 find_package(OpenAL REQUIRED)
 if (NOT WITHOUT_LLVM)
 	find_package(LLVM 4.0 CONFIG)
@@ -203,6 +203,8 @@ else()
 	option(USE_LIBEVDEV "libevdev-based joystick support" ON)
 	option(USE_VULKAN "Vulkan render backend" ON)
 endif()
+
+add_definitions(-DGLEW_REGAL)
 
 if(USE_ALSA)
 	find_package(PkgConfig)
@@ -262,7 +264,8 @@ else()
 endif()
 
 include_directories(
-${GLEW_INCLUDE_DIR}
+#${GLEW_INCLUDE_DIR}
+"${RPCS3_SRC_DIR}/../regal/include"
 ${ZLIB_INCLUDE_DIR}
 ${OPENAL_INCLUDE_DIR}
 ${LLVM_INCLUDE_DIRS}
@@ -279,7 +282,7 @@ ${LLVM_INCLUDE_DIRS}
 "${RPCS3_SRC_DIR}/../Vulkan/glslang/"
 "${RPCS3_SRC_DIR}/../3rdparty/hidapi/hidapi"
 # Includes 3rdparty stuff that isn't included yet
-"${RPCS3_SRC_DIR}/../3rdparty/GL"
+#"${RPCS3_SRC_DIR}/../3rdparty/GL"
 "${RPCS3_SRC_DIR}/../3rdparty/stblib"
 "${RPCS3_SRC_DIR}/../3rdparty/cereal/include"
 "${RPCS3_SRC_DIR}/../3rdparty/Optional"
@@ -389,7 +392,7 @@ if(WIN32)
 	endif()
 	target_link_libraries(rpcs3  avformat.lib avcodec.lib avutil.lib swresample.lib swscale.lib png16_static ${OPENAL_LIBRARY} ${ADDITIONAL_LIBS})
 else()
-	target_link_libraries(rpcs3 ${OPENAL_LIBRARY} ${GLEW_LIBRARY} ${OPENGL_LIBRARIES})
+	target_link_libraries(rpcs3 ${OPENAL_LIBRARY} "${RPCS3_SRC_DIR}/../regal/lib/darwin/libRegalGLEW.dylib" "${RPCS3_SRC_DIR}/../regal/lib/darwin/libRegal.1.0.0.dylib")
 	if(APPLE)
 		target_link_libraries(rpcs3 hidapi-mac "-framework CoreFoundation" "-framework IOKit")
 	elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")

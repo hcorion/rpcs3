@@ -663,7 +663,7 @@ void write_index_array_for_non_indexed_non_native_primitive_to_buffer(char* dst,
 		}
 		return;
 	case rsx::primitive_type::quads:
-		for (unsigned i = 0; i < count / 4; i++)
+		/*for (unsigned i = 0; i < count / 4; i++)
 		{
 			// First triangle
 			typedDst[6 * i] = 4 * i;
@@ -673,7 +673,7 @@ void write_index_array_for_non_indexed_non_native_primitive_to_buffer(char* dst,
 			typedDst[6 * i + 3] = 4 * i + 2;
 			typedDst[6 * i + 4] = 4 * i + 3;
 			typedDst[6 * i + 5] = 4 * i;
-		}
+		}*/
 		return;
 	case rsx::primitive_type::quad_strip:
 	case rsx::primitive_type::points:

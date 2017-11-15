@@ -12,6 +12,9 @@
 #include "../GCM.h"
 
 #include "Utilities/geometry.h"
+#include <GL/Regal.h>
+#include <GL/RegalGLU.h>
+#include <OpenGL/OpenGL.h>
 
 namespace gl
 {
@@ -88,6 +91,7 @@ namespace gl
 
 		void initialize()
 		{
+			RegalMakeCurrent(CGLGetCurrentContext());
 			int find_count = 8;
 			int ext_count = 0;
 			glGetIntegerv(GL_NUM_EXTENSIONS, &ext_count);
@@ -98,6 +102,7 @@ namespace gl
 
 				const char *ext = (const char*)glGetStringi(GL_EXTENSIONS, i);
 				const auto ext_name = std::string(ext);
+				LOG_ERROR(GENERAL, "%s", (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION));
 
 				if (ext_name == "GL_ARB_shader_draw_parameters")
 				{

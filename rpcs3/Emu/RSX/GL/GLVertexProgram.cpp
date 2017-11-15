@@ -30,7 +30,8 @@ std::string GLVertexDecompilerThread::compareFunction(COMPARE f, const std::stri
 
 void GLVertexDecompilerThread::insertHeader(std::stringstream &OS)
 {
-	OS << "#version 430\n";
+	OS << "#version 410 core\n";
+	OS << "#extension GL_ARB_explicit_uniform_location: enable\n";
 	OS << "layout(std140, binding = 0) uniform VertexContextBuffer\n";
 	OS << "{\n";
 	OS << "	mat4 scale_offset_mat;\n";

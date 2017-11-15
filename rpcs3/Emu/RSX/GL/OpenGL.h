@@ -1,6 +1,6 @@
 #pragma once
 #ifndef _WIN32
-#include <GL/glew.h>
+#include <GL/RegalGLEW.h>
 #endif
 
 #ifdef _WIN32
@@ -18,6 +18,8 @@ typedef BOOL (WINAPI* PFNWGLSWAPINTERVALEXTPROC) (int interval);
 #undef OPENGL_PROC2
 
 #elif defined(__APPLE__)
+#include <GL/Regal.h>
+#include <GL/RegalGLU.h>
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>
 

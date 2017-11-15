@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "OpenGL.h"
-
+#include <OpenGL/OpenGL.h>
 #ifdef _WIN32
 
 extern "C"
@@ -31,8 +31,9 @@ void gl::init()
 #undef WGL_PROC
 #undef OPENGL_PROC2
 #endif
-#ifdef __unix__
+#ifdef __APPLE__
 	glewExperimental = true;
+	RegalMakeCurrent(CGLGetCurrentContext());
 	glewInit();
 #endif
 }
