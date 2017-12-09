@@ -527,11 +527,10 @@ static NEVER_INLINE s32 savedata_op(ppu_thread& ppu, u32 operation, u32 version,
 			if (!entry.is_directory)
 			{
 				if (entry.name == "PARAM.SFO" || entry.name == "PARAM.PFD")
+				{
 					size_system_kbytes += (entry.size + 1023) / 1024; // firmware rounds this value up
-
-				// skip any file that is not in PARAM.SFO
-				if (psf.count("*" + entry.name) == 0)
-					continue;
+					continue; // system files are not included in the file list
+				}
 
 				statGet->fileNum++;
 
@@ -766,6 +765,20 @@ static NEVER_INLINE s32 savedata_op(ppu_thread& ppu, u32 operation, u32 version,
 				return CELL_SAVEDATA_ERROR_PARAM;
 			}
 
+			if (fileSet->fileBufSize < fileSet->fileSize)
+			{
+				// ****** sysutil savedata parameter error : 72 ******
+				cellSaveData.error("savedata_op(): fileSet->fileBufSize < fileSet->fileSize");
+				return CELL_SAVEDATA_ERROR_PARAM;
+			}
+
+			if (!fileSet->fileBuf)
+			{
+				// ****** sysutil savedata parameter error : 73 ******
+				cellSaveData.error("savedata_op(): fileSet->fileBuf is NULL");
+				return CELL_SAVEDATA_ERROR_PARAM;
+			}
+
 			file.seek(fileSet->fileOffset);
 			std::vector<uchar> buf;
 			buf.resize(std::min<u32>(fileSet->fileSize, fileSet->fileBufSize));
@@ -777,20 +790,6 @@ static NEVER_INLINE s32 savedata_op(ppu_thread& ppu, u32 operation, u32 version,
 
 		case CELL_SAVEDATA_FILEOP_WRITE:
 		{
-			if (!fileSet->fileSize)
-			{
-				// ****** sysutil savedata parameter error : 72 ******
-				cellSaveData.error("savedata_op(): fileSet->fileSize is 0");
-				return CELL_SAVEDATA_ERROR_PARAM;
-			}
-
-			if (!fileSet->fileBuf)
-			{
-				// ****** sysutil savedata parameter error : 73 ******
-				cellSaveData.error("savedata_op(): fileSet->fileBuf is NULL");
-				return CELL_SAVEDATA_ERROR_PARAM;
-			}
-
 			fs::file file(dir_path + file_path, fs::write + fs::create);
 			file.seek(fileSet->fileOffset);
 			const auto start = static_cast<uchar*>(fileSet->fileBuf.get_ptr());
@@ -881,10 +880,6 @@ static NEVER_INLINE s32 savedata_get_list_item(vm::cptr<char> dirName, vm::ptr<C
 
 		for (const auto& entry : fs::dir(save_path))
 		{
-			// skip any file that is not in PARAM.SFO
-			if (psf.count("*" + entry.name) == 0)
-				continue;
-
 			size_kbytes += (entry.size + 1023) / 1024; // firmware rounds this value up
 		}
 
