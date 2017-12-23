@@ -6,6 +6,7 @@
 #include "stdafx.h"
 #include "../../Utilities/Config.h"
 #include "../../Utilities/types.h"
+#include "Emu/System.h"
 
 // TODO: HLE info (constants, structs, etc.) should not be available here
 
@@ -248,9 +249,8 @@ struct Pad
 	}
 };
 
-struct pad_config : cfg::node
+struct pad_config final : cfg::node
 {
-	std::string cfg_type = "";
 	std::string cfg_name = "";
 
 	cfg::string ls_left { this, "Left Stick Left", "" };
@@ -327,7 +327,7 @@ protected:
 	bool b_has_deadzones = false;
 	bool b_has_rumble = false;
 	bool b_has_config = false;
-	pad_config m_pad_config;
+	std::array<pad_config, MAX_GAMEPADS> m_pad_configs;
 
 	template <typename T>
 	T lerp(T v0, T v1, T t) {
@@ -364,15 +364,15 @@ protected:
 	{
 		std::string def = name.def;
 		std::string nam = name.to_string();
-		int def_code = -1;
+		long def_code = -1;
 
 		for (auto it = map.begin(); it != map.end(); ++it)
 		{
 			if (it->second == nam)
-				return it->first;
+				return static_cast<long>(it->first);
 
 			if (fallback && it->second == def)
-				def_code = it->first;
+				def_code = static_cast<long>(it->first);
 		}
 
 		if (fallback)
@@ -409,7 +409,7 @@ protected:
 		for (auto it = map.begin(); it != map.end(); ++it)
 		{
 			if (it->second == name)
-				return it->first;
+				return static_cast<long>(it->first);
 		}
 
 		if (fallback)
@@ -442,7 +442,7 @@ protected:
 	float ScaleStickInput(s32 raw_value, int minimum, int maximum)
 	{
 		// value based on max range converted to [0, 1]
-		float val = float(Clamp(raw_value, minimum, maximum) - minimum) / float(abs(maximum) + abs(minimum));
+		float val = float(Clamp(static_cast<f32>(raw_value), minimum, maximum) - minimum) / float(abs(maximum) + abs(minimum));
 		return 255.0f * val;
 	};
 
@@ -450,20 +450,20 @@ protected:
 	float ScaleStickInput2(s32 raw_value, int minimum, int maximum)
 	{
 		// value based on max range converted to [0, 1]
-		float val = float(Clamp(raw_value, minimum, maximum) - minimum) / float(abs(maximum) + abs(minimum));
+		float val = float(Clamp(static_cast<f32>(raw_value), minimum, maximum) - minimum) / float(abs(maximum) + abs(minimum));
 		return (510.0f * val) - 255.0f;
 	};
 
 	// normalizes a directed input, meaning it will correspond to a single "button" and not an axis with two directions
 	// the input values must lie in 0+
-	u16 NormalizeDirectedInput(u16 raw_value, float threshold, float maximum)
+	u16 NormalizeDirectedInput(u16 raw_value, s32 threshold, s32 maximum)
 	{
 		if (threshold >= maximum || maximum <= 0)
 		{
 			return static_cast<u16>(0);
 		}
 
-		float val = float(Clamp(raw_value, 0, maximum)) / maximum; // value based on max range converted to [0, 1]
+		float val = float(Clamp(raw_value, 0, maximum)) / float(maximum); // value based on max range converted to [0, 1]
 
 		if (threshold <= 0)
 		{
@@ -471,12 +471,12 @@ protected:
 		}
 		else
 		{
-			float thresh = threshold / maximum; // threshold converted to [0, 1]
+			float thresh = float(threshold) / float(maximum); // threshold converted to [0, 1]
 			return static_cast<u16>(255.0f * std::min(1.0f, (val - thresh) / (1.0f - thresh)));
 		}
 	};
 
-	u16 NormalizeStickInput(s32 raw_value, int threshold, bool ignore_threshold = false)
+	u16 NormalizeStickInput(u16 raw_value, int threshold, bool ignore_threshold = false)
 	{
 		if (ignore_threshold)
 		{
@@ -555,7 +555,7 @@ protected:
 	// using a simple scale/sensitivity increase would *work* although it eats a chunk of our usable range in exchange
 	// this might be the best for now, in practice it seems to push the corners to max of 20x20, with a squircle_factor of 8000
 	// This function assumes inX and inY is already in 0-255 
-	std::tuple<u16, u16> ConvertToSquirclePoint(u16 inX, u16 inY, float squircle_factor)
+	std::tuple<u16, u16> ConvertToSquirclePoint(u16 inX, u16 inY, int squircle_factor)
 	{
 		// convert inX and Y to a (-1, 1) vector;
 		const f32 x = ((f32)inX - 127.5f) / 127.5f;
@@ -567,7 +567,7 @@ protected:
 
 		// now find len/point on the given squircle from our current angle and radius in polar coords
 		// https://thatsmaths.com/2016/07/14/squircles/
-		const f32 newLen = (1 + std::pow(std::sin(2 * angle), 2.f) / (squircle_factor / 1000.f)) * r;
+		const f32 newLen = (1 + std::pow(std::sin(2 * angle), 2.f) / (float(squircle_factor) / 1000.f)) * r;
 
 		// we now have len and angle, convert to cartisian
 		const int newX = Clamp0To255(((newLen * std::cos(angle)) + 1) * 127.5f);
@@ -584,6 +584,8 @@ public:
 	s32 vibration_max = 255;
 	u32 connected = 0;
 
+	pad_handler m_type = pad_handler::null;
+
 	virtual bool Init() { return true; };
 	virtual ~PadHandlerBase() = default;
 
@@ -591,17 +593,19 @@ public:
 	bool has_config() { return b_has_config; };
 	bool has_rumble() { return b_has_rumble; };
 	bool has_deadzones() { return b_has_deadzones; };
-	pad_config* GetConfig() { return &m_pad_config; };
+	static std::string get_config_dir(pad_handler type) { return fs::get_config_dir() + "/InputConfigs/" + fmt::format("%s", type) + "/"; };
+	static std::string get_config_filename(int i) { return fs::get_config_dir() + "/InputConfigs/" + g_cfg_input.player[i]->handler.to_string() + "/" + g_cfg_input.player[i]->profile.to_string() + ".yml"; };
 	//Sets window to config the controller(optional)
-	virtual void GetNextButtonPress(const std::string& padId, const std::function<void(u16, std::string, int[])>& callback, bool get_blacklist = false, std::vector<std::string> buttons = {}) {};
-	virtual void TestVibration(const std::string& padId, u32 largeMotor, u32 smallMotor) {};
+	virtual void GetNextButtonPress(const std::string& /*padId*/, const std::function<void(u16, std::string, int[])>& /*callback*/, bool /*get_blacklist*/ = false, std::vector<std::string> /*buttons*/ = {}) {};
+	virtual void TestVibration(const std::string& /*padId*/, u32 /*largeMotor*/, u32 /*smallMotor*/) {};
 	//Return list of devices for that handler
 	virtual std::vector<std::string> ListDevices() = 0;
 	//Callback called during pad_thread::ThreadFunc
 	virtual void ThreadProc() = 0;
 	//Binds a Pad to a device
-	virtual bool bindPadToDevice(std::shared_ptr<Pad> pad, const std::string& device) = 0;
+	virtual bool bindPadToDevice(std::shared_ptr<Pad> /*pad*/, const std::string& /*device*/) = 0;
+	virtual void init_config(pad_config* /*cfg*/, const std::string& /*name*/) = 0;
 
 private:
-	virtual void TranslateButtonPress(u64 keyCode, bool& pressed, u16& val, bool ignore_threshold = false) {};
+	virtual void TranslateButtonPress(u64 /*keyCode*/, bool& /*pressed*/, u16& /*val*/, bool /*ignore_threshold*/ = false) {};
 };
