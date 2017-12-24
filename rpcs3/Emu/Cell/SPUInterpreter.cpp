@@ -364,7 +364,7 @@ void spu_interpreter::BIHNZ(SPUThread& spu, spu_opcode_t op)
 
 void spu_interpreter::STOPD(SPUThread& spu, spu_opcode_t op)
 {
-	fmt::throw_exception("Unimplemented instruction" HERE);
+	fmt::throw_exception("breakpoint reached" HERE);
 }
 
 void spu_interpreter::STQX(SPUThread& spu, spu_opcode_t op)
