@@ -3,6 +3,7 @@
 #include "keyboard_pad_handler.h"
 
 #include <QApplication>
+#include <QThread>
 
 #include "rpcs3qt/pad_settings_dialog.h"
 
@@ -401,7 +402,7 @@ bool keyboard_pad_handler::bindPadToDevice(std::shared_ptr<Pad> pad, const std::
 	//Fixed assign change, default is both sensor and press off
 	pad->Init
 	(
-		CELL_PAD_STATUS_CONNECTED | CELL_PAD_STATUS_ASSIGN_CHANGES,
+		CELL_PAD_STATUS_DISCONNECTED,
 		CELL_PAD_SETTING_PRESS_OFF | CELL_PAD_SETTING_SENSOR_OFF,
 		CELL_PAD_CAPABILITY_PS3_CONFORMITY | CELL_PAD_CAPABILITY_PRESS_MODE | CELL_PAD_CAPABILITY_HP_ANALOG_STICK | CELL_PAD_CAPABILITY_ACTUATOR | CELL_PAD_CAPABILITY_SENSOR_MODE,
 		CELL_PAD_DEV_TYPE_STANDARD
@@ -440,11 +441,21 @@ bool keyboard_pad_handler::bindPadToDevice(std::shared_ptr<Pad> pad, const std::
 	pad->m_vibrateMotors.emplace_back(false, 0);
 
 	bindings.push_back(pad);
-	connected++;
 
 	return true;
 }
 
 void keyboard_pad_handler::ThreadProc()
 {
+	for (int i = 0; i < bindings.size(); i++)
+	{
+		if (last_connection_status[i] == false)
+		{
+			QThread::msleep(100); // Hack Simpsons. It calls a seemingly useless cellPadGetInfo at boot that would swallow the first CELL_PAD_STATUS_ASSIGN_CHANGES otherwise
+			bindings[i]->m_port_status |= CELL_PAD_STATUS_CONNECTED;
+			bindings[i]->m_port_status |= CELL_PAD_STATUS_ASSIGN_CHANGES;
+			last_connection_status[i] = true;
+			connected++;
+		}
+	}
 }
