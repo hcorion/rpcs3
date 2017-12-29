@@ -245,6 +245,9 @@ bool gs_frame::event(QEvent* ev)
 
 bool gs_frame::nativeEvent(const QByteArray &eventType, void *message, long *result)
 {
+	Q_UNUSED(eventType)
+	Q_UNUSED(result)
+
 #ifdef _WIN32
 	if (wm_event_queue_enabled.load(std::memory_order_consume) && !Emu.IsStopped())
 	{

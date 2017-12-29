@@ -269,7 +269,7 @@ bool trophy_manager_dialog::LoadTrophyFolderToDB(const std::string& trop_name)
 		return false;
 	}
 
-	for (int trophy_id = 0; trophy_id < game_trophy_data->trop_usr->GetTrophiesCount(); ++trophy_id)
+	for (u32 trophy_id = 0; trophy_id < game_trophy_data->trop_usr->GetTrophiesCount(); ++trophy_id)
 	{
 		// Figure out how many zeros are needed for padding.  (either 0, 1, or 2)
 		QString padding = "";
@@ -526,8 +526,9 @@ void trophy_manager_dialog::PopulateUI()
 	}
 }
 
-void trophy_manager_dialog::closeEvent(QCloseEvent * event)
+void trophy_manager_dialog::closeEvent(QCloseEvent* event)
 {
+	Q_UNUSED(event)
 	// Save gui settings
 	m_gui_settings->SetValue(gui::tr_geometry, saveGeometry());
 }
