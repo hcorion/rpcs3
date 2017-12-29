@@ -319,7 +319,7 @@ std::string SPUThread::get_name() const
 std::string SPUThread::dump() const
 {
 	std::string&& ret = cpu_thread::dump();
-	ret += fmt::format("\n" "Tag mask: 0x%08x\n" "MFC entries: %u\n", +ch_tag_mask, mfc_queue.size());
+	ret += fmt::format("\n" "Tag mask: 0x%08x\n" "MFC entries: %u\n" "event mask: %x\n" "events occured: %x\n" "events state: %x\n", +ch_tag_mask, mfc_queue.size() , ch_event_mask.load() , ch_event_stat.load() , events_state.load());
 	ret += "Registers:\n=========\n";
 
 	for (uint i = 0; i<128; ++i) ret += fmt::format("GPR[%d] = %s\n", i, gpr[i]);
