@@ -62,10 +62,13 @@ enum : u32
 	SPU_EVENT_QV = 0x8,    // MFC SPU Command Queue available
 	SPU_EVENT_SN = 0x2,    // MFC List Command stall-and-notify event
 	SPU_EVENT_TG = 0x1,    // MFC Tag Group status update event
+};
 
-	SPU_EVENT_WAITING      = 0x80000000, // Originally unused, set when SPU thread starts waiting on ch_event_stat
-	//SPU_EVENT_AVAILABLE  = 0x40000000, // Originally unused, channel count of the SPU_RdEventStat channel
-	//SPU_EVENT_INTR_ENABLED = 0x20000000, // Originally unused, represents "SPU Interrupts Enabled" status
+// SPU Events related states ,originally unused
+enum : u8
+{
+	SPU_INTR_ENABLED = 1, //
+	SPU_EVENT_AVAILABLE, // Channel count of the SPU_RdEventStat channel
 };
 
 // SPU Class 0 Interrupts
@@ -143,7 +146,7 @@ enum : u32
 };
 
 enum : u32 //orginally unused.
-{ 
+{
 	dec_msb = 1, // The most significant bit of the decrementer
 	dec_run = 2, // The state of the decrementer
 	dec_upd = 4, // Tells MFC to check the decrementer for an event
@@ -453,7 +456,7 @@ public:
 		{
 		case 0:
 			return this->_u32[3] >> 8 & 0x3;
-		
+
 		case 1:
 			return this->_u32[3] >> 10 & 0x3;
 
@@ -566,11 +569,11 @@ public:
 
 	atomic_t<u32> ch_event_mask;
 	atomic_t<u32> ch_event_stat;
-	atomic_t<bool> interrupts_enabled;
+	atomic_t<u8> events_state;
 
 	u64 ch_dec_start_timestamp; // timestamp of writing decrementer value
 	u32 ch_dec_value; // written decrementer value and the decrementer value when it stops.
-	atomic_t<u32> dec_state; // contains various decrementer related contidions 
+	atomic_t<u32> dec_state; // contains various decrementer related contidions
 
 	atomic_t<u32> run_ctrl; // SPU Run Control register (only provided to get latest data written)
 	atomic_t<u32> status; // SPU Status register
@@ -581,7 +584,7 @@ public:
 	std::array<std::pair<u32, std::weak_ptr<lv2_event_queue>>, 32> spuq; // Event Queue Keys for SPU Thread
 	std::weak_ptr<lv2_event_queue> spup[64]; // SPU Ports
 
-	u32 pc = 0; // 
+	u32 pc = 0; //
 	const u32 index; // SPU index
 	const u32 offset; // SPU LS offset
 	lv2_spu_group* const group; // SPU Thread Group
@@ -599,7 +602,7 @@ public:
 	void do_dma_transfer(const spu_mfc_cmd& args, bool from_mfc = true);
 
 	void process_mfc_cmd();
-	u32 get_events(bool waiting = false);
+	u32 get_events(bool waiting);
 	void set_events(u32 mask);
 	u32 get_ch_count(u32 ch);
 	void decrementer_thread();

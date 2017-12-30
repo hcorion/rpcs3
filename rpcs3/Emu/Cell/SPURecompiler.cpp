@@ -77,18 +77,18 @@ void spu_recompiler_base::enter(SPUThread& spu)
 			fmt::throw_exception("Invalid interrupt status set (0x%x)" HERE, res);
 		}
 
-		spu.interrupts_enabled = true;
+		spu.events_state |= 1;
 	}
 	else if (res & 0x8000000)
 	{
-		spu.interrupts_enabled = false;
+		spu.events_state &= ~1;
 	}
 
 	spu.pc = res & 0x3fffc;
 
-	if (spu.interrupts_enabled && (spu.ch_event_mask & spu.ch_event_stat) > 0)
+	if (spu.events_state == 3)
 	{
-		spu.interrupts_enabled = false;
+		spu.events_state &= ~1;
 		spu.srr0 = std::exchange(spu.pc, 0);
 	}
 }

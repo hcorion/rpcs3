@@ -14,14 +14,16 @@ void RawSPUThread::cpu_task()
 	// get next PC and SPU Interrupt status
 	pc = npc.exchange(0);
 
-	interrupts_enabled = (pc & 1) != 0;
+	events_state = pc & 1;
 
 	pc &= 0x3fffc;
 
 	SPUThread::cpu_task();
 
+	events_state &= 1;
+
 	// save next PC and current SPU Interrupt status
-	npc = pc | (interrupts_enabled);
+	npc = pc | events_state;
 }
 
 void RawSPUThread::on_init(const std::shared_ptr<void>& _this)
@@ -111,7 +113,6 @@ bool RawSPUThread::read_reg(const u32 addr, u32& value)
 
 	case SPU_NPC_offs:
 	{
-		//npc = pc | ((ch_event_stat & SPU_EVENT_INTR_ENABLED) != 0);
 		value = npc;
 		return true;
 	}
@@ -264,7 +265,7 @@ bool RawSPUThread::write_reg(const u32 addr, const u32 value)
 
 	case SPU_NPC_offs:
 	{
-		if ((value & 2) || value >= 0x40000)
+		if (value & ~0x3fffd)
 		{
 			break;
 		}

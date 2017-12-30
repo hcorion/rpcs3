@@ -230,13 +230,7 @@ void mfc_thread::cpu_task()
 								{
 									spu.ch_stall_mask |= (1 << cmd.tag);
 									spu.ch_stall_stat.push_or(spu, 1 << cmd.tag);
-
-									const u32 evt = spu.ch_event_stat.fetch_or(SPU_EVENT_SN);
-
-									if (evt & SPU_EVENT_WAITING)
-									{
-										spu.notify();
-									}
+									spu.set_events(SPU_EVENT_SN);
 									break;
 								}
 							}
@@ -307,16 +301,16 @@ void mfc_thread::cpu_task()
 					no_updates = 0;
 				}
 			}
- 		
+
 			if (spu.prxy_type)
  			{
  				// Mask incomplete transfers
  				u32 completed = spu.mfc_prxy_mask;
- 
+
  				for (u32 i = 0; i < spu.mfc_proxy.size(); i++)
  				{
  					const auto& _cmd = spu.mfc_proxy[i];
- 
+
  					if (_cmd.size)
  					{
  						if (spu.prxy_type == 1)
@@ -330,7 +324,7 @@ void mfc_thread::cpu_task()
  						}
  					}
  				}
- 
+
  				if (completed && spu.prxy_type)
  				{
 					spu.prxy_type = 0;
