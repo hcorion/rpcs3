@@ -1,5 +1,6 @@
 #pragma once
 
+#include "stdafx.h"
 #include "Emu/Cell/Common.h"
 #include "Emu/CPU/CPUThread.h"
 #include "Emu/Cell/SPUInterpreter.h"
@@ -8,6 +9,8 @@
 struct lv2_event_queue;
 struct lv2_spu_group;
 struct lv2_int_tag;
+
+#include <bitset>
 
 // SPU Channels
 enum : u32
@@ -566,6 +569,9 @@ public:
 
 	spu_channel_t ch_snr1; // SPU Signal Notification Register 1
 	spu_channel_t ch_snr2; // SPU Signal Notification Register 2
+
+	typedef std::bitset<128> bs128;
+	bs128 static_channel_counts;
 
 	atomic_t<u32> ch_event_mask;
 	atomic_t<u32> ch_event_stat;

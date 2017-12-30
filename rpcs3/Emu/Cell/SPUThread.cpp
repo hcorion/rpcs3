@@ -23,6 +23,7 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <bitset>
 
 const bool s_use_rtm = utils::has_rtm();
 
@@ -370,6 +371,7 @@ void SPUThread::cpu_init()
 	int_ctrl[1].clear();
 	int_ctrl[2].clear();
 
+	static_channel_counts = bs128(0x440F986ULL) | (bs128(0xE0ULL) << 64);
 	gpr[1]._u32[3] = 0x3FFF0; // initial stack frame pointer
 }
 
@@ -1038,7 +1040,8 @@ void SPUThread::decrementer_thread()
 
 u32 SPUThread::get_ch_count(u32 ch)
 {
-	LOG_TRACE(SPU, "get_ch_count(ch=%d [%s])", ch, ch < 128 ? spu_ch_name[ch] : "???");
+	if (ch > 127) fmt::throw_exception("illegal channel (ch=%d)" HERE, ch);
+	LOG_TRACE(SPU, "get_ch_count(ch=%d [%s])", ch, spu_ch_name[ch]);
 
 	switch (ch)
 	{
@@ -1053,9 +1056,8 @@ u32 SPUThread::get_ch_count(u32 ch)
 	case MFC_RdAtomicStat:    return ch_atomic_stat.get_count();
 	case SPU_RdEventStat:     return (events_state & SPU_EVENT_AVAILABLE) != 0;
 	case MFC_Cmd:             return std::max(16 - mfc_queue.size(), (u32)0);
+	default : return static_channel_counts.test(ch);
 	}
-
-	fmt::throw_exception("Unknown/illegal channel (ch=%d [%s])" HERE, ch, ch < 128 ? spu_ch_name[ch] : "???");
 }
 
 bool SPUThread::get_ch_value(u32 ch, u32& out)
