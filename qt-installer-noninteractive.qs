@@ -34,7 +34,7 @@ Controller.prototype.ComponentSelectionPageCallback = function() {
 
     widget.deselectAll();
     widget.selectComponent("qt.qt5.5100.gcc_64");
-	widget.selectComponent("qt.qt5.5100.qtscript.gcc_64");
+	//widget.selectComponent("qt.qt5.5100.qtscript.gcc_64");
 
     gui.clickButton(buttons.NextButton);
 }
