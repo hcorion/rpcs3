@@ -18,7 +18,7 @@
 
 constexpr auto qstr = QString::fromStdString;
 
-gs_frame::gs_frame(const QString& title, int w, int h, QIcon appIcon, bool disableMouse, const QRect& geometry)
+gs_frame::gs_frame(const QString& title, const QRect& geometry, QIcon appIcon, bool disableMouse)
 	: QWindow(), m_windowTitle(title), m_disable_mouse(disableMouse)
 {
 	//Get version by substringing VersionNumber-buildnumber-commithash to get just the part before the dash
@@ -50,7 +50,6 @@ gs_frame::gs_frame(const QString& title, int w, int h, QIcon appIcon, bool disab
 
 	m_show_fps = static_cast<bool>(g_cfg.misc.show_fps_in_title);
 
-	resize(w, h);
 	setGeometry(geometry);
 	setTitle(m_windowTitle);
 	setVisibility(Hidden);

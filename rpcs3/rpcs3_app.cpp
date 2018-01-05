@@ -56,6 +56,8 @@
 #include "Emu/Audio/Pulse/PulseThread.h"
 #endif
 
+#include <QScreen>
+
 // For now, a trivial constructor/destructor.  May add command line usage later.
 rpcs3_app::rpcs3_app(int& argc, char** argv) : QApplication(argc, argv)
 {
@@ -170,42 +172,62 @@ void rpcs3_app::InitializeCallbacks()
 
 		// Make display geometry rectangle for the gs frame
 		// Take area of main window & center it neatly inside of it
-		// This prevents the frame being spawned wherever your cursor is, which is really annoying for multi-screen users
+		// This prevents the frame being spawned wherever your cursor is,
+		// which is really annoying for multi-screen users
 		QRect main_window_geometry = RPCS3MainWin->geometry();
-		QRect gs_frame_geometry = QRect(main_window_geometry.left() + ((main_window_geometry.width() - w) / 2),
-										main_window_geometry.top() + ((main_window_geometry.height() - h) / 2),
-										w, h);
+
+		// Get minimum virtual screen x & y for clamping the
+		// window x & y later while taking the width and height
+		// into account, so they don't go offscreen
+		int min_screen_x = std::numeric_limits<int>::max();
+		int max_screen_x = std::numeric_limits<int>::min();
+		int min_screen_y = std::numeric_limits<int>::max();
+		int max_screen_y = std::numeric_limits<int>::min();
+		foreach(auto screen, QApplication::screens())
+		{
+			min_screen_x = std::min(min_screen_x, screen->geometry().x());
+			max_screen_x = std::max(max_screen_x, screen->geometry().x() + screen->geometry().width() - w);
+			min_screen_y = std::min(min_screen_y, screen->geometry().y() + 10); // account for window frame size
+			max_screen_y = std::max(max_screen_y, screen->geometry().y() + screen->geometry().height() - h);
+		}
+
+		// std::clamp is not quite here yet
+		int gs_frame_geometry_x = std::max(min_screen_x, std::min(main_window_geometry.left() + ((main_window_geometry.width() - w) / 2), max_screen_x));
+		int gs_frame_geometry_y = std::max(min_screen_y, std::min(main_window_geometry.top() + ((main_window_geometry.height() - h) / 2), max_screen_y));
+
+		QRect gs_frame_geometry = QRect(gs_frame_geometry_x, gs_frame_geometry_y, w, h);
+
+		gs_frame* frame;
 
 		switch (video_renderer type = g_cfg.video.renderer)
 		{
 		case video_renderer::null:
 		{
-			gs_frame* ret = new gs_frame("Null", w, h, RPCS3MainWin->GetAppIcon(), disableMouse, gs_frame_geometry);
-			gameWindow = ret;
-			return std::unique_ptr<gs_frame>(ret);
+			frame = new gs_frame("Null", gs_frame_geometry, RPCS3MainWin->GetAppIcon(), disableMouse);
+			break;
 		}
 		case video_renderer::opengl:
 		{
-			gl_gs_frame* ret = new gl_gs_frame(w, h, RPCS3MainWin->GetAppIcon(), disableMouse, gs_frame_geometry);
-			gameWindow = ret;
-			return std::unique_ptr<gl_gs_frame>(ret);
+			frame = new gl_gs_frame(gs_frame_geometry, RPCS3MainWin->GetAppIcon(), disableMouse);
+			break;
 		}
 		case video_renderer::vulkan:
 		{
-			gs_frame* ret = new gs_frame("Vulkan", w, h, RPCS3MainWin->GetAppIcon(), disableMouse, gs_frame_geometry);
-			gameWindow = ret;
-			return std::unique_ptr<gs_frame>(ret);
+			frame = new gs_frame("Vulkan", gs_frame_geometry, RPCS3MainWin->GetAppIcon(), disableMouse);
+			break;
 		}
 #ifdef _MSC_VER
 		case video_renderer::dx12:
 		{
-			gs_frame* ret = new gs_frame("DirectX 12", w, h, RPCS3MainWin->GetAppIcon(), disableMouse, gs_frame_geometry);
-			gameWindow = ret;
-			return std::unique_ptr<gs_frame>(ret);
+			gs_frame* ret = new gs_frame("DirectX 12", gs_frame_geometry, RPCS3MainWin->GetAppIcon(), disableMouse);
+			break;
 		}
 #endif
 		default: fmt::throw_exception("Invalid video renderer: %s" HERE, type);
 		}
+
+		gameWindow = frame;
+		return std::unique_ptr<gs_frame>(frame);
 	};
 
 	callbacks.get_gs_render = []() -> std::shared_ptr<GSRender>
