@@ -9,7 +9,7 @@ private:
 	QSurfaceFormat m_format;
 
 public:
-	gl_gs_frame(int w, int h, QIcon appIcon, bool disableMouse);
+	gl_gs_frame(int w, int h, QIcon appIcon, bool disableMouse, const QRect& geometry);
 
 	draw_context_t make_context() override;
 	void set_current(draw_context_t context) override;

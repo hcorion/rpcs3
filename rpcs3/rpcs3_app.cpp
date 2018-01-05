@@ -168,30 +168,38 @@ void rpcs3_app::InitializeCallbacks()
 
 		bool disableMouse = guiSettings->GetValue(gui::gs_disableMouse).toBool();
 
+		// Make display geometry rectangle for the gs frame
+		// Take area of main window & center it neatly inside of it
+		// This prevents the frame being spawned wherever your cursor is, which is really annoying for multi-screen users
+		QRect main_window_geometry = RPCS3MainWin->geometry();
+		QRect gs_frame_geometry = QRect(main_window_geometry.left() + ((main_window_geometry.width() - w) / 2),
+										main_window_geometry.top() + ((main_window_geometry.height() - h) / 2),
+										w, h);
+
 		switch (video_renderer type = g_cfg.video.renderer)
 		{
 		case video_renderer::null:
 		{
-			gs_frame* ret = new gs_frame("Null", w, h, RPCS3MainWin->GetAppIcon(), disableMouse);
+			gs_frame* ret = new gs_frame("Null", w, h, RPCS3MainWin->GetAppIcon(), disableMouse, gs_frame_geometry);
 			gameWindow = ret;
 			return std::unique_ptr<gs_frame>(ret);
 		}
 		case video_renderer::opengl:
 		{
-			gl_gs_frame* ret = new gl_gs_frame(w, h, RPCS3MainWin->GetAppIcon(), disableMouse);
+			gl_gs_frame* ret = new gl_gs_frame(w, h, RPCS3MainWin->GetAppIcon(), disableMouse, gs_frame_geometry);
 			gameWindow = ret;
 			return std::unique_ptr<gl_gs_frame>(ret);
 		}
 		case video_renderer::vulkan:
 		{
-			gs_frame* ret = new gs_frame("Vulkan", w, h, RPCS3MainWin->GetAppIcon(), disableMouse);
+			gs_frame* ret = new gs_frame("Vulkan", w, h, RPCS3MainWin->GetAppIcon(), disableMouse, gs_frame_geometry);
 			gameWindow = ret;
 			return std::unique_ptr<gs_frame>(ret);
 		}
 #ifdef _MSC_VER
 		case video_renderer::dx12:
 		{
-			gs_frame* ret = new gs_frame("DirectX 12", w, h, RPCS3MainWin->GetAppIcon(), disableMouse);
+			gs_frame* ret = new gs_frame("DirectX 12", w, h, RPCS3MainWin->GetAppIcon(), disableMouse, gs_frame_geometry);
 			gameWindow = ret;
 			return std::unique_ptr<gs_frame>(ret);
 		}

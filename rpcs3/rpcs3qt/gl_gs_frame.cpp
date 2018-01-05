@@ -5,8 +5,8 @@
 #include <QOpenGLContext>
 #include <QWindow>
 
-gl_gs_frame::gl_gs_frame(int w, int h, QIcon appIcon, bool disableMouse)
-	: gs_frame("OpenGL", w, h, appIcon, disableMouse)
+gl_gs_frame::gl_gs_frame(int w, int h, QIcon appIcon, bool disableMouse, const QRect& geometry)
+	: gs_frame("OpenGL", w, h, appIcon, disableMouse, geometry)
 {
 	setSurfaceType(QSurface::OpenGLSurface);
 
