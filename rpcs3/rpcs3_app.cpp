@@ -185,10 +185,11 @@ void rpcs3_app::InitializeCallbacks()
 		int max_screen_y = std::numeric_limits<int>::min();
 		foreach(auto screen, QApplication::screens())
 		{
-			min_screen_x = std::min(min_screen_x, screen->geometry().x());
-			max_screen_x = std::max(max_screen_x, screen->geometry().x() + screen->geometry().width() - w);
-			min_screen_y = std::min(min_screen_y, screen->geometry().y() + 10); // account for window frame size
-			max_screen_y = std::max(max_screen_y, screen->geometry().y() + screen->geometry().height() - h);
+			auto screen_geometry = screen->availableGeometry();
+			min_screen_x = std::min(min_screen_x, screen_geometry.x());
+			max_screen_x = std::max(max_screen_x, screen_geometry.x() + screen_geometry.width() - w);
+			min_screen_y = std::min(min_screen_y, screen_geometry.y() + 10); // account for window frame size
+			max_screen_y = std::max(max_screen_y, screen_geometry.y() + screen_geometry.height() - h);
 		}
 
 		// std::clamp is not quite here yet
