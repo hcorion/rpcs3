@@ -386,6 +386,12 @@ void Emulator::Load(bool add_only)
 		m_title_id = psf::get_string(_psf, "TITLE_ID");
 		m_cat = psf::get_string(_psf, "CATEGORY");
 
+		if (!_psf.empty() && m_cat.empty())
+		{
+			LOG_FATAL(LOADER, "Corrupted PARAM.SFO found! Assuming category GD. Try reinstalling the game.");
+			m_cat = "GD";
+		}
+
 		LOG_NOTICE(LOADER, "Title: %s", GetTitle());
 		LOG_NOTICE(LOADER, "Serial: %s", GetTitleID());
 		LOG_NOTICE(LOADER, "Category: %s", GetCat());
@@ -914,7 +920,7 @@ void Emulator::Resume()
 	GetCallbacks().on_resume();
 }
 
-void Emulator::Stop()
+void Emulator::Stop(bool restart)
 {
 	if (m_state.exchange(system_state::stopped) == system_state::stopped)
 	{
@@ -922,7 +928,7 @@ void Emulator::Stop()
 		return;
 	}
 
-	const bool do_exit = !m_force_boot && g_cfg.misc.autoexit;
+	const bool do_exit = !restart && !m_force_boot && g_cfg.misc.autoexit;
 
 	LOG_NOTICE(GENERAL, "Stopping emulator...");
 
@@ -986,6 +992,12 @@ void Emulator::Stop()
 	jit_finalize();
 #endif
 
+	if (restart)
+	{
+		return Load();
+	}
+
+	// Boot arg cleanup (preserved in the case restarting)
 	argv.clear();
 	envp.clear();
 	data.clear();
