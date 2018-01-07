@@ -31,6 +31,7 @@
 #include "Utilities/GDBDebugServer.h"
 
 cfg_root g_cfg;
+cfg_input g_cfg_input;
 
 system_type g_system;
 
@@ -144,7 +145,6 @@ void fmt_class_string<video_aspect>::format(std::string& out, u64 arg)
 		return unknown;
 	});
 }
-
 
 template <>
 void fmt_class_string<keyboard_handler>::format(std::string& out, u64 arg)

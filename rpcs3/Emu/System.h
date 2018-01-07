@@ -1,6 +1,7 @@
 #pragma once
 
 #include "VFS.h"
+#include "stdafx.h"
 #include "Utilities/Atomic.h"
 #include "Utilities/Config.h"
 #include <functional>
@@ -430,3 +431,45 @@ struct cfg_root : cfg::node
 };
 
 extern cfg_root g_cfg;
+
+struct cfg_player final : cfg::node
+{
+	pad_handler def_handler = pad_handler::null;
+	cfg_player(node* owner, const std::string& name, pad_handler type) : cfg::node(owner, name), def_handler(type) {};
+
+	cfg::_enum<pad_handler> handler{ this, "Handler", def_handler };
+	cfg::string device{ this, "Device", handler.to_string() };
+	cfg::string profile{ this, "Profile", "Default Profile" };
+};
+
+struct cfg_input final : cfg::node
+{
+	const std::string cfg_name = fs::get_config_dir() + "/config_input.yml";
+
+	cfg_player player1{ this, "Player 1 Input", pad_handler::keyboard };
+	cfg_player player2{ this, "Player 2 Input", pad_handler::null };
+	cfg_player player3{ this, "Player 3 Input", pad_handler::null };
+	cfg_player player4{ this, "Player 4 Input", pad_handler::null };
+	cfg_player player5{ this, "Player 5 Input", pad_handler::null };
+	cfg_player player6{ this, "Player 6 Input", pad_handler::null };
+	cfg_player player7{ this, "Player 7 Input", pad_handler::null };
+
+	cfg_player *player[7]{ &player1, &player2, &player3, &player4, &player5, &player6, &player7 }; // Thanks gcc! 
+
+	bool load()
+	{
+		if (fs::file cfg_file{ cfg_name, fs::read })
+		{
+			return from_string(cfg_file.to_string());
+		}
+
+		return false;
+	};
+
+	void save()
+	{
+		fs::file(cfg_name, fs::rewrite).write(to_string());
+	};
+};
+
+extern cfg_input g_cfg_input;
