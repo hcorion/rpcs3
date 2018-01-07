@@ -66,10 +66,11 @@ UTILS_DLL_C_EXPORT ps3emu_api_error_code ps3emu_api_get_version_string(char *des
 	}
 
 	const std::string version_string = rpcs3::version.to_string();
+	int len = static_cast<int>(version_string.length());
 
-	if (dest_buffer_size > version_string.length())
+	if (dest_buffer_size > len)
 	{
-		dest_buffer_size = version_string.length();
+		dest_buffer_size = len;
 	}
 
 	std::memcpy(dest_buffer, version_string.c_str(), dest_buffer_size - 1);
@@ -111,10 +112,11 @@ UTILS_DLL_C_EXPORT ps3emu_api_error_code ps3emu_api_get_name_string(char *dest_b
 	}
 
 	const std::string name_string = "RPCS3";
+	int len = static_cast<int>(name_string.length());
 
-	if (dest_buffer_size > name_string.length())
+	if (dest_buffer_size > len)
 	{
-		dest_buffer_size = name_string.length();
+		dest_buffer_size = len;
 	}
 
 	std::memcpy(dest_buffer, name_string.c_str(), dest_buffer_size - 1);

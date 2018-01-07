@@ -6,7 +6,7 @@
 
 static const int TROPHY_TIMEOUT_MS = 7500;
 
-inline QString qstr(const std::string& _in) { return QString::fromUtf8(_in.data(), _in.size()); }
+constexpr auto qstr = QString::fromStdString;
 
 trophy_notification_frame::trophy_notification_frame(const std::vector<uchar>& imgBuffer, const SceNpTrophyDetails& trophy, int height) : QWidget()
 {
@@ -24,7 +24,8 @@ trophy_notification_frame::trophy_notification_frame(const std::vector<uchar>& i
 	trophyImgLabel->setPalette(black_background);
 
 	QImage trophyImg;
-	if (imgBuffer.size() > 0 && trophyImg.loadFromData((uchar*)&imgBuffer[0], imgBuffer.size(), "PNG"))
+	int img_buf_size = static_cast<int>(imgBuffer.size());
+	if (img_buf_size > 0 && trophyImg.loadFromData((uchar*)&imgBuffer[0], img_buf_size, "PNG"))
 	{
 		trophyImg = trophyImg.scaledToHeight(height); // I might consider adding ability to change size since on hidpi this will be rather small.
 		trophyImgLabel->setPixmap(QPixmap::fromImage(trophyImg));
@@ -60,7 +61,8 @@ trophy_notification_frame::trophy_notification_frame(const std::vector<uchar>& i
 	setPalette(black_background);
 
 	// I may consider moving this code later to be done at a better location.
-	QTimer::singleShot(TROPHY_TIMEOUT_MS, [this]() {
+	QTimer::singleShot(TROPHY_TIMEOUT_MS, [this]()
+	{
 		deleteLater();
 	});
 }

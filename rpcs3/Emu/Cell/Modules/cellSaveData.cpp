@@ -153,7 +153,7 @@ static NEVER_INLINE s32 savedata_op(ppu_thread& ppu, u32 operation, u32 version,
 						if (fs::is_file(base_dir + entry.name + "/ICON0.PNG"))
 						{
 							fs::file icon = fs::file(base_dir + entry.name + "/ICON0.PNG");
-							u32 iconSize = icon.size();
+							u64 iconSize = icon.size();
 							std::vector<uchar> iconData;
 							icon.read(iconData, iconSize);
 							save_entry2.iconBuf = iconData;
@@ -270,7 +270,7 @@ static NEVER_INLINE s32 savedata_op(ppu_thread& ppu, u32 operation, u32 version,
 			}
 			case CELL_SAVEDATA_FOCUSPOS_LISTTAIL:
 			{
-				focused = save_entries.size() - 1;
+				focused = static_cast<s32>(save_entries.size()) - 1;
 				break;
 			}
 			case CELL_SAVEDATA_FOCUSPOS_LATEST:
