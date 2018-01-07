@@ -1,5 +1,6 @@
 #pragma once
 
+#include "stdafx.h"
 #include "Emu/Cell/Common.h"
 #include "Emu/CPU/CPUThread.h"
 #include "Emu/Cell/SPUInterpreter.h"
@@ -8,6 +9,8 @@
 struct lv2_event_queue;
 struct lv2_spu_group;
 struct lv2_int_tag;
+
+#include <bitset>
 
 // SPU Channels
 enum : u32
@@ -52,25 +55,23 @@ enum : u32
 {
 	SPU_EVENT_MS = 0x1000, // Multisource Synchronization event
 	SPU_EVENT_A  = 0x800,  // Privileged Attention event
-	SPU_EVENT_LR = 0x400,  // Lock Line Reservation Lost event
+	SPU_EVENT_LR = 0x400,  // Lock Line Reservation Lost event ~ TODO: check if an immediate update needed
 	SPU_EVENT_S1 = 0x200,  // Signal Notification Register 1 available
 	SPU_EVENT_S2 = 0x100,  // Signal Notification Register 2 available
 	SPU_EVENT_LE = 0x80,   // SPU Outbound Mailbox available
 	SPU_EVENT_ME = 0x40,   // SPU Outbound Interrupt Mailbox available
 	SPU_EVENT_TM = 0x20,   // SPU Decrementer became negative (?)
 	SPU_EVENT_MB = 0x10,   // SPU Inbound mailbox available
-	SPU_EVENT_QV = 0x4,    // MFC SPU Command Queue available
+	SPU_EVENT_QV = 0x8,    // MFC SPU Command Queue available
 	SPU_EVENT_SN = 0x2,    // MFC List Command stall-and-notify event
 	SPU_EVENT_TG = 0x1,    // MFC Tag Group status update event
+};
 
-	SPU_EVENT_IMPLEMENTED  = SPU_EVENT_LR | SPU_EVENT_TM | SPU_EVENT_SN, // Mask of implemented events
-	SPU_EVENT_INTR_IMPLEMENTED = SPU_EVENT_SN,
-
-	SPU_EVENT_WAITING      = 0x80000000, // Originally unused, set when SPU thread starts waiting on ch_event_stat
-	//SPU_EVENT_AVAILABLE  = 0x40000000, // Originally unused, channel count of the SPU_RdEventStat channel
-	//SPU_EVENT_INTR_ENABLED = 0x20000000, // Originally unused, represents "SPU Interrupts Enabled" status
-
-	SPU_EVENT_INTR_TEST = SPU_EVENT_INTR_IMPLEMENTED
+// SPU Events related states ,originally unused
+enum : u8
+{
+	SPU_INTR_ENABLED = 1, //
+	SPU_EVENT_AVAILABLE, // Channel count of the SPU_RdEventStat channel
 };
 
 // SPU Class 0 Interrupts
@@ -118,6 +119,7 @@ enum : u32
 
 enum
 {
+	MFC_MSSync_offs = 0x0000,
 	MFC_LSA_offs = 0x3004,
 	MFC_EAH_offs = 0x3008,
 	MFC_EAL_offs = 0x300C,
@@ -144,6 +146,13 @@ enum : u32
 	RAW_SPU_OFFSET      = 0x00100000,
 	RAW_SPU_LS_OFFSET   = 0x00000000,
 	RAW_SPU_PROB_OFFSET = 0x00040000,
+};
+
+enum : u32 //orginally unused.
+{
+	dec_msb = 1, // The most significant bit of the decrementer
+	dec_run = 2, // The state of the decrementer
+	dec_upd = 4, // Tells MFC to check the decrementer for an event
 };
 
 struct spu_channel_t
@@ -450,7 +459,7 @@ public:
 		{
 		case 0:
 			return this->_u32[3] >> 8 & 0x3;
-		
+
 		case 1:
 			return this->_u32[3] >> 10 & 0x3;
 
@@ -551,6 +560,7 @@ public:
 	spu_channel_4_t ch_in_mbox;
 
 	atomic_t<u32> mfc_prxy_mask;
+	atomic_t<u32> prxy_type;
 
 	spu_channel_t ch_out_mbox;
 	spu_channel_t ch_out_intr_mbox;
@@ -560,12 +570,16 @@ public:
 	spu_channel_t ch_snr1; // SPU Signal Notification Register 1
 	spu_channel_t ch_snr2; // SPU Signal Notification Register 2
 
+	typedef std::bitset<128> bs128;
+	bs128 static_channel_counts;
+
 	atomic_t<u32> ch_event_mask;
 	atomic_t<u32> ch_event_stat;
-	atomic_t<bool> interrupts_enabled;
+	atomic_t<u8> events_state;
 
 	u64 ch_dec_start_timestamp; // timestamp of writing decrementer value
-	u32 ch_dec_value; // written decrementer value
+	u32 ch_dec_value; // written decrementer value and the decrementer value when it stops.
+	atomic_t<u32> dec_state; // contains various decrementer related contidions
 
 	atomic_t<u32> run_ctrl; // SPU Run Control register (only provided to get latest data written)
 	atomic_t<u32> status; // SPU Status register
@@ -576,7 +590,7 @@ public:
 	std::array<std::pair<u32, std::weak_ptr<lv2_event_queue>>, 32> spuq; // Event Queue Keys for SPU Thread
 	std::weak_ptr<lv2_event_queue> spup[64]; // SPU Ports
 
-	u32 pc = 0; // 
+	u32 pc = 0; //
 	const u32 index; // SPU index
 	const u32 offset; // SPU LS offset
 	lv2_spu_group* const group; // SPU Thread Group
@@ -594,10 +608,10 @@ public:
 	void do_dma_transfer(const spu_mfc_cmd& args, bool from_mfc = true);
 
 	void process_mfc_cmd();
-	u32 get_events(bool waiting = false);
+	u32 get_events(bool waiting);
 	void set_events(u32 mask);
-	void set_interrupt_status(bool enable);
 	u32 get_ch_count(u32 ch);
+	void decrementer_thread();
 	bool get_ch_value(u32 ch, u32& out);
 	bool set_ch_value(u32 ch, u32 value);
 	bool stop_and_signal(u32 code);

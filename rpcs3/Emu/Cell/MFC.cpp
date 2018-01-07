@@ -199,7 +199,7 @@ void mfc_thread::cpu_task()
 						{
 							cmd.lsa &= 0x3fff0;
 
-							// try to get the whole list done in one go
+							// Try to get the whole list done in one go
 							while (cmd.size != 0)
 							{
 								const list_element item = spu._ref<list_element>(cmd.eal & 0x3fff8);
@@ -225,18 +225,13 @@ void mfc_thread::cpu_task()
 								cmd.size -= 8;
 								no_updates = 0;
 
-								// dont stall for last 'item' in list
+								// Dont stall for last 'item' in list
 								if ((item.sb & 0x8000) && (cmd.size != 0))
 								{
 									spu.ch_stall_mask |= (1 << cmd.tag);
+									bool is_written = spu.ch_stall_stat.get_count();
 									spu.ch_stall_stat.push_or(spu, 1 << cmd.tag);
-
-									const u32 evt = spu.ch_event_stat.fetch_or(SPU_EVENT_SN);
-
-									if (evt & SPU_EVENT_WAITING)
-									{
-										spu.notify();
-									}
+									if (!is_written) spu.set_events(SPU_EVENT_SN);
 									break;
 								}
 							}
@@ -308,6 +303,37 @@ void mfc_thread::cpu_task()
 				}
 			}
 
+			if (spu.prxy_type)
+ 			{
+ 				// Mask incomplete transfers
+ 				u32 completed = spu.mfc_prxy_mask;
+
+ 				for (u32 i = 0; i < spu.mfc_proxy.size(); i++)
+ 				{
+ 					const auto& _cmd = spu.mfc_proxy[i];
+
+ 					if (_cmd.size)
+ 					{
+ 						if (spu.prxy_type == 1)
+ 						{
+ 							completed &= ~(1u << _cmd.tag);
+ 						}
+ 						else
+ 						{
+ 							completed = 0;
+ 							break;
+ 						}
+ 					}
+ 				}
+
+ 				if (completed && spu.prxy_type)
+ 				{
+					spu.prxy_type = 0;
+ 					spu.int_ctrl[2].set(SPU_INT2_STAT_DMA_TAG_GROUP_COMPLETION_INT);
+  					no_updates = 0;
+  				}
+  			}
+
 			test_state();
 		}
 		if (no_updates++)
@@ -340,7 +366,7 @@ void mfc_thread::cpu_task()
 						}
 					}
 
-					if (spu.ch_tag_upd)
+					if (spu.ch_tag_upd || spu.prxy_type)
 					{
 						no_updates = 0;
 						break;

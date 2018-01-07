@@ -47,18 +47,19 @@ void spu_interpreter::set_interrupt_status(SPUThread& spu, spu_opcode_t op)
 			fmt::throw_exception("Undefined behaviour" HERE);
 		}
 
-		spu.set_interrupt_status(true);
+		spu.events_state |= 1;
 	}
 	else if (op.d)
 	{
-		spu.set_interrupt_status(false);
+		spu.events_state &= ~1;
 	}
 
-	if (spu.interrupts_enabled && (spu.ch_event_mask & spu.ch_event_stat & SPU_EVENT_INTR_IMPLEMENTED) > 0)
-	{
-		spu.interrupts_enabled = false;
-		spu.srr0 = std::exchange(spu.pc, -4) + 4;
-	}
+	// Checks for interrupts are now made between the instruction execution
+	//if (spu.events_state == 3)
+	//{
+	//	spu.spu.events_state &= ~1;
+	//	spu.srr0 = std::exchange(spu.pc, -4) + 4;
+	//}
 }
 
 
@@ -363,7 +364,7 @@ void spu_interpreter::BIHNZ(SPUThread& spu, spu_opcode_t op)
 
 void spu_interpreter::STOPD(SPUThread& spu, spu_opcode_t op)
 {
-	fmt::throw_exception("Unimplemented instruction" HERE);
+	fmt::throw_exception("breakpoint reached" HERE);
 }
 
 void spu_interpreter::STQX(SPUThread& spu, spu_opcode_t op)
@@ -393,7 +394,14 @@ void spu_interpreter::IRET(SPUThread& spu, spu_opcode_t op)
 
 void spu_interpreter::BISLED(SPUThread& spu, spu_opcode_t op)
 {
-	fmt::throw_exception("Unimplemented instruction" HERE);
+	const u32 target = spu_branch_target(spu.gpr[op.ra]._u32[3]) ;
+	spu.gpr[op.rt] = v128::from32r(spu_branch_target(spu.pc + 4)) ;
+
+	if (spu.events_state & SPU_EVENT_AVAILABLE)
+	{
+	 	spu.pc = target - 4;
+		set_interrupt_status(spu, op);
+	}
 }
 
 void spu_interpreter::HBR(SPUThread& spu, spu_opcode_t op)

@@ -877,7 +877,7 @@ const std::array<ppu_function_t, 1024> s_ppu_syscall_table
 	null_func,//BIND_FUNC(sys_dbg_...)                      //972 (0x3CC)
 	null_func,//BIND_FUNC(sys_dbg_...)                      //973 (0x3CD)
 	null_func,//BIND_FUNC(sys_dbg_...)                      //974 (0x3CE)
-	null_func,//BIND_FUNC(sys_dbg_read_spu_thread_context2) //975 (0x3CF)
+	BIND_FUNC(sys_dbg_read_spu_thread_context2), 			//975 (0x3CF)
 	null_func,//BIND_FUNC(sys_dbg_...)                      //976 (0x3D0)
 	null_func,//BIND_FUNC(sys_dbg_...)                      //977 (0x3D1)
 	null_func,//BIND_FUNC(sys_dbg_...)                      //978 (0x3D2)  ROOT
@@ -887,7 +887,7 @@ const std::array<ppu_function_t, 1024> s_ppu_syscall_table
 	null_func,//BIND_FUNC(sys_dbg_...)                      //982 (0x3D6)
 	null_func,//BIND_FUNC(sys_dbg_...)                      //983 (0x3D7)
 	null_func,//BIND_FUNC(sys_dbg_...)                      //984 (0x3D8)
-	null_func,//BIND_FUNC(sys_dbg_get_console_type)         //985 (0x3D9)  ROOT
+	BIND_FUNC(sys_dbg_get_console_type),        		    //985 (0x3D9)  ROOT
 	null_func,//BIND_FUNC(sys_dbg_...)                      //986 (0x3DA)  ROOT  DBG
 	null_func,//BIND_FUNC(sys_dbg_...)                      //987 (0x3DB)  ROOT
 	null_func,//BIND_FUNC(sys_dbg_..._ppu_exception_handler) //988 (0x3DC)
