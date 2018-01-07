@@ -3,6 +3,7 @@
 #include "rsx_methods.h"
 #include "Emu/RSX/GCM.h"
 #include "Common/BufferUtils.h"
+#include "overlays.h"
 
 extern "C"
 {
@@ -11,6 +12,12 @@ extern "C"
 
 namespace rsx
 {
+	namespace overlays
+	{
+		//Singleton instance declaration
+		fontmgr* fontmgr::m_instance = nullptr;
+	}
+
 	void convert_scale_image(u8 *dst, AVPixelFormat dst_format, int dst_width, int dst_height, int dst_pitch,
 		const u8 *src, AVPixelFormat src_format, int src_width, int src_height, int src_pitch, int src_slice_h, bool bilinear)
 	{

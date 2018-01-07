@@ -294,6 +294,7 @@ private:
 
 	gl::text_writer m_text_printer;
 	gl::depth_convert_pass m_depth_converter;
+	gl::ui_overlay_renderer m_ui_renderer;
 
 	std::mutex queue_guard;
 	std::list<work_item> work_queue;
@@ -367,6 +368,8 @@ protected:
 	void on_notify_memory_unmapped(u32 address_base, u32 size) override;
 	void notify_tile_unbound(u32 tile) override;
 
-	virtual std::array<std::vector<gsl::byte>, 4> copy_render_targets_to_memory() override;
-	virtual std::array<std::vector<gsl::byte>, 2> copy_depth_stencil_buffer_to_memory() override;
+	std::array<std::vector<gsl::byte>, 4> copy_render_targets_to_memory() override;
+	std::array<std::vector<gsl::byte>, 2> copy_depth_stencil_buffer_to_memory() override;
+
+	void shell_do_cleanup() override;
 };

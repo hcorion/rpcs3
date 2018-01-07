@@ -2168,12 +2168,81 @@ namespace rsx
 	void thread::pause()
 	{
 		external_interrupt_lock.store(true);
-		while (!external_interrupt_ack.load()) _mm_pause();
+		while (!external_interrupt_ack.load())
+		{
+			if (Emu.IsStopped())
+				break;
+
+			_mm_pause();
+		}
 		external_interrupt_ack.store(false);
 	}
 
 	void thread::unpause()
 	{
 		external_interrupt_lock.store(false);
+	}
+
+	//TODO: Move these helpers into a better class dedicated to shell interface handling (use idm?)
+	//They are not dependent on rsx at all
+	rsx::overlays::save_dialog* thread::shell_open_save_dialog()
+	{
+		if (supports_native_ui)
+		{
+			auto ptr = new rsx::overlays::save_dialog();
+			m_custom_ui.reset(ptr);
+			return ptr;
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	rsx::overlays::message_dialog* thread::shell_open_message_dialog()
+	{
+		if (supports_native_ui)
+		{
+			auto ptr = new rsx::overlays::message_dialog();
+			m_custom_ui.reset(ptr);
+			return ptr;
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	rsx::overlays::trophy_notification* thread::shell_open_trophy_notification()
+	{
+		if (supports_native_ui)
+		{
+			auto ptr = new rsx::overlays::trophy_notification();
+			m_custom_ui.reset(ptr);
+			return ptr;
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	rsx::overlays::user_interface* thread::shell_get_current_dialog()
+	{
+		//TODO: Only get dialog type interfaces
+		return m_custom_ui.get();
+	}
+
+	bool thread::shell_close_dialog()
+	{
+		//TODO: Only get dialog type interfaces
+		if (m_custom_ui)
+		{
+			m_invalidated_ui = std::move(m_custom_ui);
+			shell_do_cleanup();
+			return true;
+		}
+
+		return false;
 	}
 }
