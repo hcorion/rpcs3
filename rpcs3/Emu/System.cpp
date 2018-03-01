@@ -440,6 +440,10 @@ void Emulator::Load(bool add_only)
 		const std::string hdd0_game = vfs::get("/dev_hdd0/game/");
 		const std::string hdd0_disc = vfs::get("/dev_hdd0/disc/");
 
+		// Super ultra mega Demon's Souls PSN hacks
+		if (m_title_id == "BLES00932" || m_title_id == "BLUS30443")
+			m_cat = "GD";
+
 		if (m_cat == "DG" && m_path.find(hdd0_game) != -1 && disc.empty())
 		{
 			// Booting disc game from wrong location
