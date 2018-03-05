@@ -732,7 +732,7 @@ std::shared_ptr<lv2_prx> ppu_load_prx(const ppu_prx_object& elf, const std::stri
 				const u32 init_addr = ::narrow<u32>(prog.p_vaddr, "p_vaddr" HERE);
 
 				// Alloc segment memory
-				const u32 addr = vm::alloc(mem_size, vm::main);
+				const u32 addr = vm::alloc(mem_size, vm::main, 0x1000);
 
 				if (!addr)
 				{
@@ -950,7 +950,7 @@ std::shared_ptr<lv2_prx> ppu_load_prx(const ppu_prx_object& elf, const std::stri
 		// Special loading mode
 		auto ppu = idm::make_ptr<ppu_thread>("test_thread", 0, 0x100000);
 
-		ppu->cmd_push({ppu_cmd::initialize, 0});
+		ppu->cmd_push({ ppu_cmd::initialize, 0 });
 	}
 
 	return prx;
@@ -1098,6 +1098,7 @@ void ppu_load_exec(const ppu_exec_object& elf)
 	ppu_initialize_modules(link);
 
 	// Load other programs
+	bool empty_imports_exports = false;
 	for (auto& prog : elf.progs)
 	{
 		switch (const u32 p_type = prog.p_type)
@@ -1192,12 +1193,84 @@ void ppu_load_exec(const ppu_exec_object& elf)
 				ppu_load_exports(link, proc_prx_param.libent_start, proc_prx_param.libent_end);
 				ppu_load_imports(_main->relocs, link, proc_prx_param.libstub_start, proc_prx_param.libstub_end);
 			}
+			else
+			{
+				empty_imports_exports = true;
+			}
 			break;
 		}
 		default:
 		{
 			LOG_ERROR(LOADER, "Unknown phdr type (0x%08x)", p_type);
 		}
+		}
+	}
+
+	if (empty_imports_exports)
+	{
+		LOG_ERROR(LOADER, "Failed identifying imports and export, trying for best effort");
+
+		// Make best effort (vsh.self works this way, as it has imports & exports, but no fitting prog describing them)
+		be_t<u32> libent_start = 0;
+		be_t<u32> libent_end = 0;
+		be_t<u32> libstub_start = 0;
+		be_t<u32> libstub_end = 0;
+
+		// Look for exports segment
+		for (const auto& s : elf.shdrs)
+		{
+			if (s.sh_size % 0x1c != 0 || s.sh_addr == 0) continue;
+
+			libent_start = s.sh_addr;
+			libent_end = libent_start + s.sh_size;
+
+			for (u32 offset = 0; offset < s.sh_size; offset += 0x1c)
+			{
+				const u16 struct_size = *vm::_ptr<const u16>(vm::cast(s.sh_addr + offset, HERE));
+				if (struct_size != 0x1c00)
+				{
+					libent_start = 0;
+					break;
+				}
+			}
+
+			if (libent_start)
+			{
+				break;
+			}
+		}
+
+		// Look for imports segment
+		for (const auto& s : elf.shdrs)
+		{
+			if (s.sh_size % 0x2c != 0 || s.sh_addr == 0) continue;
+
+			libstub_start = s.sh_addr;
+			libstub_end = libstub_start + s.sh_size;
+
+			for (u32 offset = 0; offset < s.sh_size; offset += 0x2c)
+			{
+				const u16 struct_size = *vm::_ptr<const u16>(vm::cast(s.sh_addr + offset, HERE));
+				if (struct_size != 0x2c00)
+				{
+					libstub_start = 0;
+					break;
+				}
+			}
+
+			if (libstub_start)
+			{
+				break;
+			}
+		}
+
+		if (libent_start != 0 && libent_end != 0)
+		{
+			ppu_load_exports(link, libent_start, libent_end);
+		}
+		if (libstub_start != 0 && libstub_end != 0)
+		{
+			ppu_load_imports(_main->relocs, link, libstub_start, libstub_end);
 		}
 	}
 
@@ -1454,21 +1527,24 @@ void ppu_load_exec(const ppu_exec_object& elf)
 	// TODO: adjust for liblv2 loading option
 	u32 entry = static_cast<u32>(elf.header.e_entry);
 
-	if (g_cfg.core.lib_loading != lib_loading_type::liblv2only)
+	if (loaded_modules.size() != 0)
 	{
-		// Set TLS args, call sys_initialize_tls
-		ppu->cmd_list
-		({
-			{ ppu_cmd::set_args, 4 }, u64{ppu->id}, u64{tls_vaddr}, u64{tls_fsize}, u64{tls_vsize},
-			{ ppu_cmd::hle_call, FIND_FUNC(sys_initialize_tls) },
-		});
-	}
-	else
-	{
-		// Run liblv2.sprx entry point (TODO)
-		entry = loaded_modules[0]->start.addr();
+		if (g_cfg.core.lib_loading != lib_loading_type::liblv2only)
+		{
+			// Set TLS args, call sys_initialize_tls
+			ppu->cmd_list
+			({
+				{ ppu_cmd::set_args, 4 }, u64{ppu->id}, u64{tls_vaddr}, u64{tls_fsize}, u64{tls_vsize},
+				{ ppu_cmd::hle_call, FIND_FUNC(sys_initialize_tls) },
+			});
+		}
+		else
+		{
+			// Run liblv2.sprx entry point (TODO)
+			entry = loaded_modules[0]->start.addr();
 
-		loaded_modules.clear();
+			loaded_modules.clear();
+		}
 	}
 
 	// Run start functions

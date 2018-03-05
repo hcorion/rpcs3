@@ -42,3 +42,10 @@ error_code sys_tty_write(s32 ch, vm::cptr<char> buf, u32 len, vm::ptr<u32> pwrit
 
 	return CELL_OK;
 }
+
+error_code sys_console_write(vm::cptr<char> buf, u32 len)
+{
+	sys_tty.notice("sys_console_write(buf=*0x%x, len=%d)", buf, len);
+	g_tty.write(buf.get_ptr(), len);
+	return CELL_OK;
+}

@@ -101,6 +101,7 @@ public:
 		dev_hdd0Location,
 		dev_hdd1Location,
 		dev_flashLocation,
+		dev_flash2Location,
 		dev_usb000Location,
 	};
 
@@ -256,10 +257,11 @@ private:
 		{EnableHostRoot, { "VFS", "Enable /host_root/"}},
 
 		// Virtual File System
-		{ emulatorLocation,   { "VFS", "$(EmulatorDir)"}},
-		{ dev_hdd0Location,   { "VFS", "/dev_hdd0/" }},
-		{ dev_hdd1Location,   { "VFS", "/dev_hdd1/" }},
-		{ dev_flashLocation,  { "VFS", "/dev_flash/"}},
+		{ emulatorLocation, { "VFS", "$(EmulatorDir)"}},
+		{ dev_hdd0Location, { "VFS", "/dev_hdd0/" }},
+		{ dev_hdd1Location, { "VFS", "/dev_hdd1/" }},
+		{ dev_flashLocation, { "VFS", "/dev_flash/"}},
+		{ dev_flash2Location, { "VFS", "/dev_flash2/" } },
 		{ dev_usb000Location, { "VFS", "/dev_usb000/"}},
 	};
 

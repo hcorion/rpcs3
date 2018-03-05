@@ -105,7 +105,7 @@ void sys_initialize_tls(ppu_thread& ppu, u64 main_thread_id, u32 tls_seg_addr, u
 
 	vm::var<sys_mutex_attribute_t> attr;
 	attr->protocol  = SYS_SYNC_PRIORITY;
-	attr->recursive = SYS_SYNC_NOT_RECURSIVE;
+	attr->recursive = SYS_SYNC_RECURSIVE;
 	attr->pshared   = SYS_SYNC_NOT_PROCESS_SHARED;
 	attr->adaptive  = SYS_SYNC_NOT_ADAPTIVE;
 	attr->ipc_key   = 0;

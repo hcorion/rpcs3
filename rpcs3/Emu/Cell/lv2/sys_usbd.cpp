@@ -189,6 +189,7 @@ s32 sys_usbd_close_pipe()
 	return CELL_OK;
 }
 
+<<<<<<< HEAD
 s32 sys_usbd_receive_event(ppu_thread& ppu, u32 handle, vm::ptr<u64> arg1, vm::ptr<u64> arg2, vm::ptr<u64> arg3)
 {
 	sys_usbd.todo("sys_usbd_receive_event(handle=%u, arg1=0x%x, arg2=0x%x, arg3=0x%x)", handle, arg1, arg2, arg3);

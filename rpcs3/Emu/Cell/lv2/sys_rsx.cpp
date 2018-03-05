@@ -12,6 +12,8 @@
 
 logs::channel sys_rsx("sys_rsx");
 
+bool g_vsh = true; // TODO 
+
 extern u64 get_timebased_time();
 
 struct SysRsxConfig {
@@ -92,9 +94,9 @@ s32 sys_rsx_context_allocate(vm::ptr<u32> context_id, vm::ptr<u64> lpar_dma_cont
 
 	*context_id = 0x55555555;
 
-	*lpar_dma_control = 0x40100000;
-	*lpar_driver_info = 0x40200000;
-	*lpar_reports = 0x40300000;
+	*lpar_dma_control = addr + 0x100000;
+	*lpar_driver_info = addr + 0x200000;
+	*lpar_reports = addr + 0x300000;
 
 	auto &reports = vm::_ref<RsxReports>(*lpar_reports);
 	std::memset(&reports, 0, sizeof(RsxReports));
@@ -124,7 +126,7 @@ s32 sys_rsx_context_allocate(vm::ptr<u32> context_id, vm::ptr<u64> lpar_dma_cont
 	driverInfo.reportsOffset = 0;
 	driverInfo.reportsReportOffset = 0x1400;
 	driverInfo.systemModeFlags = system_mode;
-	driverInfo.hardware_channel = 1; // * i think* this 1 for games, 0 for vsh
+	driverInfo.hardware_channel = g_vsh ? 0 : 1; // * i think* this 1 for games, 0 for vsh
 
 	m_sysrsx->driverInfo = *lpar_driver_info;
 
@@ -422,7 +424,7 @@ s32 sys_rsx_device_map(vm::ptr<u64> addr, vm::ptr<u64> a2, u32 dev_id)
 	// a2 seems to not be referenced in cellGcmSys
 	*a2 = 0;
 
-	*addr = 0x40000000;
+	*addr = g_vsh ? 0x60000000 : 0x40000000;
 
 	return CELL_OK;
 }

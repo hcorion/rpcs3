@@ -63,6 +63,9 @@
     <Filter Include="Emu\Cell\Modules">
       <UniqueIdentifier>{4317ac27-38e4-4f8d-9bac-496f9b00f615}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Emu\Cell\Modules\vsh">
+      <UniqueIdentifier>{1ab3f14d-8997-437f-beb8-9db9c95e8f3d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Crypto\aes.cpp">
@@ -722,7 +725,34 @@
     <ClCompile Include="..\Utilities\sysinfo.cpp">
       <Filter>Utilities</Filter>
     </ClCompile>
+    <ClCompile Include="Emu\Cell\Modules\cxml.cpp">
+      <Filter>Emu\Cell\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Emu\Cell\Modules\vsh\np_trophy_vsh.cpp">
+      <Filter>Emu\Cell\Modules\vsh</Filter>
+    </ClCompile>
+    <ClCompile Include="Emu\Cell\lv2\sys_usbd.cpp">
+      <Filter>Emu\Cell\lv2</Filter>
+    </ClCompile>
     <ClCompile Include="Emu\Cell\lv2\sys_gamepad.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emu\Cell\lv2\sys_rsxaudio.cpp">
+      <Filter>Emu\Cell\lv2</Filter>
+    </ClCompile>
+    <ClCompile Include="Emu\Cell\lv2\sys_uart.cpp">
+      <Filter>Emu\Cell\lv2</Filter>
+    </ClCompile>
+    <ClCompile Include="Emu\Cell\lv2\sys_config.cpp">
+      <Filter>Emu\Cell\lv2</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Utilities\LUrlParser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emu\Cell\lv2\sys_usbd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emu\Cell\lv2\sys_storage.cpp">
       <Filter>Emu\Cell\lv2</Filter>
     </ClCompile>
     <ClCompile Include="..\Utilities\LUrlParser.cpp">
@@ -828,9 +858,6 @@
     </ClInclude>
     <ClInclude Include="Emu\Audio\AudioDumper.h">
       <Filter>Emu\Audio</Filter>
-    </ClInclude>
-    <ClInclude Include="Emu\Memory\Memory.h">
-      <Filter>Emu\Memory</Filter>
     </ClInclude>
     <ClInclude Include="Emu\Memory\MemoryBlock.h">
       <Filter>Emu\Memory</Filter>
@@ -1387,13 +1414,37 @@
     <ClInclude Include="..\Utilities\sysinfo.h">
       <Filter>Utilities</Filter>
     </ClInclude>
-    <ClInclude Include="Emu\RSX\Common\GLSLCommon.h">
-      <Filter>Emu\GPU\RSX\Common</Filter>
+    <ClInclude Include="Emu\Cell\Modules\cxml.h">
+      <Filter>Emu\Cell\Modules</Filter>
     </ClInclude>
     <ClInclude Include="..\Utilities\hash.h">
       <Filter>Utilities</Filter>
     </ClInclude>
+    <ClInclude Include="Emu\RSX\Common\GLSLCommon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Cell\lv2\sys_usbd.h">
+      <Filter>Emu\Cell\lv2</Filter>
+    </ClInclude>
     <ClInclude Include="Emu\Cell\lv2\sys_gamepad.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Cell\lv2\sys_rsxaudio.h">
+      <Filter>Emu\Cell\lv2</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Cell\lv2\sys_uart.h">
+      <Filter>Emu\Cell\lv2</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Memory\Memory.h">
+      <Filter>Emu\HDD</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Cell\lv2\sys_config.h">
+      <Filter>Emu\Cell\lv2</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Cell\lv2\sys_usbd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Cell\lv2\sys_storage.h">
       <Filter>Emu\Cell\lv2</Filter>
     </ClInclude>
     <ClInclude Include="Emu\RSX\Common\texture_cache.h">

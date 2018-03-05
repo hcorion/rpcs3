@@ -19,7 +19,7 @@ error_code sys_lwcond_create(vm::ptr<sys_lwcond_t> lwcond, vm::ptr<sys_lwmutex_t
 
 	vm::var<u32> out_id;
 	vm::var<sys_cond_attribute_t> attrs;
-	attrs->pshared  = SYS_SYNC_NOT_PROCESS_SHARED;
+	attrs->pshared = SYS_SYNC_NOT_PROCESS_SHARED;
 	attrs->name_u64 = attr->name_u64;
 
 	if (auto res = g_avoid_lwm ? sys_cond_create(out_id, lwmutex->sleep_queue, attrs) : _sys_lwcond_create(out_id, lwmutex->sleep_queue, lwcond, attr->name_u64, 0))
@@ -27,7 +27,7 @@ error_code sys_lwcond_create(vm::ptr<sys_lwcond_t> lwcond, vm::ptr<sys_lwmutex_t
 		return res;
 	}
 
-	lwcond->lwmutex      = lwmutex;
+	lwcond->lwmutex = lwmutex;
 	lwcond->lwcond_queue = *out_id;
 	return CELL_OK;
 }

@@ -46,6 +46,11 @@ error_code sceNpSnsFbInit(vm::cptr<SceNpSnsFbInitParams> params)
 		return SCE_NP_SNS_ERROR_INVALID_ARGUMENT;
 	}
 
+	if (params->poolSize < 8 * 1024)
+	{
+		return SCE_NP_SNS_ERROR_OUT_OF_MEMORY;
+	}
+
 	// TODO: Use the initialization parameters somewhere
 
 	return CELL_OK;
@@ -159,9 +164,24 @@ s32 sceNpSnsFbLoadThrottle()
 	return CELL_OK;
 }
 
-s32 sceNpSnsFbGetLongAccessToken()
+s32 sceNpSnsFbGetLongAccessToken(u32 handle, vm::cptr<SceNpSnsFbAccessTokenParam> param, vm::ptr<SceNpSnsFbAccessTokenResult> result)
 {
-	UNIMPLEMENTED_FUNC(sceNpSns);
+	sceNpSns.todo("sceNpSnsFbGetLongAccessToken(handle=%d, param=*0x%x, result=*0x%x)", handle, param, result);
+
+	if (handle == SCE_NP_SNS_FB_INVALID_HANDLE || handle > SCE_NP_SNS_FB_HANDLE_SLOT_MAX || !param || !result || !param->fb_app_id)
+	{
+		return SCE_NP_SNS_ERROR_INVALID_ARGUMENT;
+	}
+
+	const auto sfh = idm::get<sns_fb_handle_t>(handle);
+
+	if (!sfh)
+	{
+		return SCE_NP_SNS_FB_ERROR_UNKNOWN_HANDLE;
+	}
+
+	// TODO
+
 	return CELL_OK;
 }
 

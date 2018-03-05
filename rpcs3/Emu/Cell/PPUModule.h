@@ -107,8 +107,6 @@ class ppu_module_manager final
 
 	static void register_module(ppu_static_module* module);
 
-	static ppu_static_function& access_static_function(const char* module, u32 fnid);
-
 	static ppu_static_variable& access_static_variable(const char* module, u32 vnid);
 
 	// Global variable for each registered function
@@ -119,6 +117,8 @@ class ppu_module_manager final
 	};
 
 public:
+	static ppu_static_function& access_static_function(const char* module, u32 fnid);
+
 	static const ppu_static_module* get_module(const std::string& name);
 
 	template <typename T, T Func>
@@ -159,6 +159,11 @@ public:
 		info.addr  = 0;
 
 		return info;
+	}
+
+	static void register_init_function(const char* module, bool(init_func)())
+	{
+		access().at(module)->on_load.push(init_func);
 	}
 
 	static const auto& get()
@@ -281,6 +286,8 @@ inline RT ppu_execute_function_or_callback(ppu_thread& ppu, Args&&... args)
 #define CALL_FUNC(ppu, func, ...) ppu_execute_function_or_callback<decltype(&func), &func>(ppu, __VA_ARGS__)
 
 #define REG_FNID(module, nid, func) ppu_module_manager::register_static_function<decltype(&func), &func>(#module, ppu_select_name(#func, nid), BIND_FUNC(func, ppu.cia = (u32)ppu.lr & ~3), ppu_generate_id(nid))
+
+#define REG_INIT(module, func) ppu_module_manager::register_init_function(#module, func)
 
 #define REG_FUNC(module, func) REG_FNID(module, #func, func)
 

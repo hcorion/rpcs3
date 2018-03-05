@@ -931,7 +931,11 @@ s32 cellGcmIoOffsetToAddress(u32 ioOffset, vm::ptr<u32> address)
 
 s32 gcmMapEaIoAddress(u32 ea, u32 io, u32 size, bool is_strict)
 {
-	if ((ea & 0xFFFFF) || (io & 0xFFFFF) || (size & 0xFFFFF)) return CELL_GCM_ERROR_FAILURE;
+	if ((ea & 0xFFFFF) || (io & 0xFFFFF) || (size & 0xFFFFF))
+	{
+		cellGcmSys.error("gcmMapEaIoAddress: alignment CELL_GCM_ERROR_FAILURE");
+		return CELL_GCM_ERROR_FAILURE;
+	}
 
 	const auto render = fxm::get<GSRender>();
 

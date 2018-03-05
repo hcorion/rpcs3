@@ -745,6 +745,17 @@ error_code sys_fs_fcntl(u32 fd, u32 op, vm::ptr<void> _arg, u32 _size)
 
 	switch (op)
 	{
+	case 0x80000004: // Unknown
+	{
+		if (_size > 4)
+		{
+			return CELL_EINVAL;
+		}
+
+		const auto arg = vm::static_ptr_cast<u32>(_arg);
+		*arg = 0;
+		break;
+	}
 	case 0x80000006: // cellFsAllocateFileAreaByFdWithInitialData
 	{
 		break;

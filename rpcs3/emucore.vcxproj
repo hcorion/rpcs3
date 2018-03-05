@@ -114,6 +114,13 @@
     <ClCompile Include="..\Utilities\VirtualMemory.cpp" />
     <ClCompile Include="Emu\Cell\lv2\sys_gpio.cpp" />
     <ClCompile Include="Emu\Cell\lv2\sys_net.cpp" />
+    <ClCompile Include="Emu\Cell\lv2\sys_config.cpp" />
+    <ClCompile Include="Emu\Cell\lv2\sys_rsxaudio.cpp" />
+    <ClCompile Include="Emu\Cell\lv2\sys_storage.cpp" />
+    <ClCompile Include="Emu\Cell\lv2\sys_uart.cpp" />
+    <ClCompile Include="Emu\Cell\lv2\sys_usbd.cpp" />
+    <ClCompile Include="Emu\Cell\Modules\cxml.cpp" />
+    <ClCompile Include="Emu\Cell\Modules\vsh\np_trophy_vsh.cpp" />
     <ClCompile Include="Emu\Cell\PPUAnalyser.cpp" />
     <ClCompile Include="Emu\Cell\PPUTranslator.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -391,8 +398,13 @@
     <ClInclude Include="Crypto\utils.h" />
     <ClInclude Include="define_new_memleakdetect.h" />
     <ClInclude Include="Emu\Cell\lv2\sys_gpio.h" />
+    <ClInclude Include="Emu\Cell\lv2\sys_config.h" />
+    <ClInclude Include="Emu\Cell\lv2\sys_rsxaudio.h" />
+    <ClInclude Include="Emu\Cell\lv2\sys_storage.h" />
+    <ClInclude Include="Emu\Cell\lv2\sys_uart.h" />
     <ClInclude Include="Emu\Cell\lv2\sys_net.h" />
     <ClInclude Include="Emu\Cell\Modules\cellOskDialog.h" />
+    <ClInclude Include="Emu\Cell\Modules\cxml.h" />
     <ClInclude Include="Emu\Cell\PPUAnalyser.h" />
     <ClInclude Include="Emu\Cell\PPUTranslator.h" />
     <ClInclude Include="Emu\CPU\CPUTranslator.h" />

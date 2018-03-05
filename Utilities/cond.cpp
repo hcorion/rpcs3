@@ -13,8 +13,13 @@ bool cond_variable::imp_wait(u32 _old, u64 _timeout) noexcept
 	const bool is_inf = _timeout > max_timeout;
 
 #ifdef _WIN32
+	auto signed_timeout = static_cast<LONGLONG>(_timeout);
+	if (signed_timeout != -1 && signed_timeout < 0) return __debugbreak(), false;
+	signed_timeout *= 10;
+	if (signed_timeout != -10 && signed_timeout < 0) return __debugbreak(), false;
+
 	LARGE_INTEGER timeout;
-	timeout.QuadPart = _timeout * -10;
+	timeout.QuadPart = -signed_timeout;
 
 	if (HRESULT rc = NtWaitForKeyedEvent(nullptr, &m_value, false, is_inf ? nullptr : &timeout))
 	{
@@ -33,7 +38,7 @@ bool cond_variable::imp_wait(u32 _old, u64 _timeout) noexcept
 	return true;
 #else
 	timespec timeout;
-	timeout.tv_sec  = _timeout / 1000000;
+	timeout.tv_sec = _timeout / 1000000;
 	timeout.tv_nsec = (_timeout % 1000000) * 1000;
 
 	for (u32 value = _old + 1;; value = m_value)

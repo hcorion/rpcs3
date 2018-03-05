@@ -28,3 +28,4 @@ enum
 // SysCalls
 error_code sys_tty_read(s32 ch, vm::ptr<char> buf, u32 len, vm::ptr<u32> preadlen);
 error_code sys_tty_write(s32 ch, vm::cptr<char> buf, u32 len, vm::ptr<u32> pwritelen);
+error_code sys_console_write(vm::cptr<char> buf, u32 len);

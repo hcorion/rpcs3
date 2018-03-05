@@ -304,7 +304,7 @@ s32 cellMusicInitialize2(s32 mode, s32 spuPriority, vm::ptr<CellMusic2Callback> 
 	{
 		music->func(ppu, CELL_MUSIC2_EVENT_INITIALIZE_RESULT, vm::addr_t(CELL_OK), userData);
 		return CELL_OK;
-	});
+	}, func.addr());
 
 	return CELL_OK;
 }

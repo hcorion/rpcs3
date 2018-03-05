@@ -297,8 +297,8 @@ error_code sys_spu_thread_group_create(vm::ptr<u32> id, u32 num, s32 prio, vm::p
 	sys_spu.warning("sys_spu_thread_group_create(id=*0x%x, num=%d, prio=%d, attr=*0x%x)", id, num, prio, attr);
 
 	// TODO: max num value should be affected by sys_spu_initialize() settings
-
-	if (attr->nsize > 0x80 || !num || num > 6 || ((prio < 16 || prio > 255) && attr->type != SYS_SPU_THREAD_GROUP_TYPE_EXCLUSIVE_NON_CONTEXT))
+	const u32 min_priority = /*!check_access ? 16 : */0;
+	if (attr->nsize > 0x80 || !num || num > 6 || ((prio < min_priority || prio > 255) && attr->type != SYS_SPU_THREAD_GROUP_TYPE_EXCLUSIVE_NON_CONTEXT))
 	{
 		return CELL_EINVAL;
 	}

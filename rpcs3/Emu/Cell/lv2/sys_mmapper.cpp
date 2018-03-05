@@ -10,7 +10,7 @@ logs::channel sys_mmapper("sys_mmapper");
 
 error_code sys_mmapper_allocate_address(u64 size, u64 flags, u64 alignment, vm::ptr<u32> alloc_addr)
 {
-	sys_mmapper.error("sys_mmapper_allocate_address(size=0x%llx, flags=0x%llx, alignment=0x%llx, alloc_addr=*0x%x)", size, flags, alignment, alloc_addr);
+	sys_mmapper.warning("sys_mmapper_allocate_address(size=0x%llx, flags=0x%llx, alignment=0x%llx, alloc_addr=*0x%x)", size, flags, alignment, alloc_addr);
 
 	if (size % 0x10000000)
 	{
@@ -68,6 +68,11 @@ error_code sys_mmapper_allocate_shared_memory(u64 unk, u32 size, u64 flags, vm::
 {
 	sys_mmapper.warning("sys_mmapper_allocate_shared_memory(0x%llx, size=0x%x, flags=0x%llx, mem_id=*0x%x)", unk, size, flags, mem_id);
 
+	if (size == 0)
+	{
+		return 0x80010010;
+	}
+
 	// Check page granularity
 	switch (flags & SYS_MEMORY_PAGE_SIZE_MASK)
 	{
@@ -107,7 +112,7 @@ error_code sys_mmapper_allocate_shared_memory(u64 unk, u32 size, u64 flags, vm::
 
 	// Generate a new mem ID
 	*mem_id = idm::make<lv2_obj, lv2_memory>(size, flags & SYS_MEMORY_PAGE_SIZE_1M ? 0x100000 : 0x10000, flags, dct);
-
+	sys_mmapper.warning("sys_mmapper_allocate_shared_memory created 0x%x", *mem_id);
 	return CELL_OK;
 }
 
@@ -168,6 +173,7 @@ error_code sys_mmapper_allocate_shared_memory_from_container(u64 unk, u32 size, 
 	// Generate a new mem ID
 	*mem_id = idm::make<lv2_obj, lv2_memory>(size, flags & SYS_MEMORY_PAGE_SIZE_1M ? 0x100000 : 0x10000, flags, ct.ptr);
 
+	sys_mmapper.warning("sys_mmapper_allocate_shared_memory_from_container created 0x%x", *mem_id);
 	return CELL_OK;
 }
 
@@ -329,6 +335,7 @@ error_code sys_mmapper_search_and_map(u32 start_addr, u32 mem_id, u64 flags, vm:
 	}
 
 	*alloc_addr = mem->addr = addr;
+	sys_mmapper.warning("sys_mmapper_search_and_map - mapped 0x%x", addr);
 	return CELL_OK;
 }
 
@@ -405,5 +412,101 @@ error_code sys_mmapper_enable_page_fault_notification(u32 start_addr, u32 event_
 	page_fault_notification_entry entry{ start_addr, event_queue_id, port_id->value() };
 	pf_entries->entries.emplace_back(entry);
 
+	return CELL_OK;
+}
+
+error_code sys_mmapper_339(u64 ipc_key, s32 size, u32 flags, vm::ptr<struct_339> src, s32 count, vm::ptr<u32> mem_id)
+{
+	sys_mmapper.todo("sys_mmapper_339(ipc_key=*0x%x, size=0x%x, flags=0x%x, src=*0x%x, count=0x%x, mem_id=*0x%x)", ipc_key, size, flags, src, count, mem_id);
+	if (size == 0)
+	{
+		return CELL_EALIGN;
+	}
+
+	switch (flags & SYS_MEMORY_PAGE_SIZE_MASK)
+	{
+	case SYS_MEMORY_PAGE_SIZE_1M:
+	case 0:
+	{
+		if (size % 0x100000)
+		{
+			return CELL_EALIGN;
+		}
+
+		break;
+	}
+
+	case SYS_MEMORY_PAGE_SIZE_64K:
+	{
+		if (size % 0x10000)
+		{
+			return CELL_EALIGN;
+		}
+
+		break;
+	}
+	default:
+	{
+		return CELL_EINVAL;
+	}
+	}
+
+	if (size <= 0)
+	{
+		return CELL_EALIGN;
+	}
+
+	if (count <= 0 || count > 0x10)
+	{
+		return CELL_EINVAL;
+	}
+
+	if ((flags & SYS_MEMORY_PAGE_SIZE_MASK) != flags)
+	{
+		return CELL_EINVAL;
+	}
+
+	//u32 temp = vm::alloc(24 * count, vm::main);
+	//memcpy(vm::base(temp), src.get_ptr(), 24 * count);
+
+	if (count != 0)
+	{
+		bool found = false;
+		for (s32 i = 0; i < count; i++)
+		{
+			u32 cur = src[i].e;
+			if (cur < 1 || cur == 3) continue;
+
+			if (cur != 5)
+			{
+				return CELL_EPERM;
+			}
+
+			found = true;
+		}
+
+		if (found)
+		{
+			if (flags != SYS_MEMORY_PAGE_SIZE_64K /* || !access_check*/)
+			{
+				return CELL_EPERM;
+			}
+		}
+	}
+
+	// TODO figure out what it does with the struct - it is stored ina linked list when the memory is created
+
+	// Get "default" memory container
+	const auto dct = fxm::get_always<lv2_memory_container>();
+
+	if (!dct->take(size))
+	{
+		return CELL_ENOMEM;
+	}
+
+	// Generate a new mem ID
+	*mem_id = idm::make<lv2_obj, lv2_memory>(size, flags & SYS_MEMORY_PAGE_SIZE_1M ? 0x100000 : 0x10000, flags, dct);
+
+	//vm::dealloc(temp);
 	return CELL_OK;
 }
