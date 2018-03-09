@@ -332,7 +332,7 @@ QStringList gui_settings::GetDirEntries(const QDir& dir, const QStringList& name
 }
 
 void gui_settings::BackupSettingsToTarget(const QString& friendlyName)
-{	
+{
 	QSettings target(ComputeSettingsDir() + friendlyName + ".ini", QSettings::Format::IniFormat);
 	for (const QString& key : m_settings.allKeys())
 	{
@@ -354,7 +354,15 @@ QStringList gui_settings::GetStylesheetEntries()
 	{
 		res.append(entry.baseName());
 	}
-
+#ifndef _WIN32
+	// Attempt to load GuiConfigs from share directory, makes AppImages have qt styles installed by default.
+	QDir shareDir = QDir(QCoreApplication::applicationFilePath() + "/../share/rpcs3/GuiConfigs/");
+	QFileInfoList shareEntries = shareDir.entryInfoList(nameFilter, QDir::Files);
+	for (const QFileInfo &entry : shareEntries)
+	{
+		res.append(entry.baseName());
+	}
+#endif
 	return res;
 }
 
