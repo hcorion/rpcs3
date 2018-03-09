@@ -35,7 +35,7 @@ before_install:
 
 install:
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-      wget http://download.qt.io/official_releases/online_installers/qt-unified-linux-x64-online.run ;
+      wget -O qt-unified-linux-x64-online.run http://mirrors.ocf.berkeley.edu/qt/archive/online_installers/3.0/qt-unified-linux-x64-3.0.1-online.run ;
       chmod a+x ./qt-unified-linux-x64-online.run ;
       QT_QPA_PLATFORM=minimal QTVER="${QTVER//.}" travis_wait 60 ./qt-unified-linux-x64-online.run --script qt-installer-noninteractive.qs --no-force-installations --verbose ;
     fi;
@@ -46,7 +46,9 @@ install:
       wget https://mirrors.kernel.org/ubuntu/pool/universe/g/glew/libglew2.0_2.0.0-5_amd64.deb;
       wget https://mirrors.kernel.org/ubuntu/pool/universe/v/vulkan/libvulkan1_1.0.61.1+dfsg1-1ubuntu1~16.04.1_amd64.deb;
       wget https://mirrors.kernel.org/ubuntu/pool/universe/v/vulkan/libvulkan-dev_1.0.61.1+dfsg1-1ubuntu1~16.04.1_amd64.deb;
-      sudo dpkg -i libglew2.0_2.0.0-5_amd64.deb libglew-dev_2.0.0-5_amd64.deb libvulkan1_1.0.61.1+dfsg1-1ubuntu1~16.04.1_amd64.deb libvulkan-dev_1.0.61.1+dfsg1-1ubuntu1~16.04.1_amd64.deb;
+      wget -O llvm.deb https://drive.google.com/uc?export=download&id=1gOPASNTTRvDqXNxcxS3mbbLKNquBSrUs;
+      wget -O llvm-dev.deb https://drive.google.com/uc?export=download&id=18ukoeJGMX9kvvGJqcHQS9guV7T-KjzUZ;
+      sudo dpkg -i *.deb;
     else
       brew update;
       brew install ccache glew llvm40;
@@ -97,7 +99,6 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-trusty-4.0
       - sourceline: 'ppa:jonathonf/binutils' # We need to update binutils to a newer version to link against the ffmpeg libs on.
     packages:
       - binutils
@@ -110,8 +111,9 @@ addons:
       #- libvulkan1
       #- libvulkan-dev
       - libc6-dev
-      - llvm-4.0
-      - llvm-4.0-dev
+      # Unfortunately the LLVM apt is unstable, so it's now being hosted on Google Drive.
+      #- llvm-4.0
+      #- llvm-4.0-dev
       # Clang 5.0 is now bundled in travis, so we no longer need the ppa version.
       #- clang-4.0
       - libedit-dev
