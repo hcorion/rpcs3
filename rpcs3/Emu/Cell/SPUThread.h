@@ -606,6 +606,11 @@ public:
 
 	void fast_call(u32 ls_addr);
 
+	inline bool isRawSPU() const
+	{
+		return id < 0x02000000;
+	}
+
 	// Convert specified SPU LS address to a pointer of specified (possibly converted to BE) type
 	template<typename T>
 	inline to_be_t<T>* _ptr(u32 lsa)
