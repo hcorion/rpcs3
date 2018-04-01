@@ -34,6 +34,7 @@ enum : u32
 	MFC_PUTLLC_FAILURE = 1, // reservation was lost
 	MFC_PUTLLUC_SUCCESS = 2,
 	MFC_GETLLAR_SUCCESS = 4,
+	MFC_ATOMIC_EMPTY = 5, // Originally unused, value is set when the atomic channel data is empty.
 };
 
 // MFC Write Tag Status Update Request Channel (ch23) operations

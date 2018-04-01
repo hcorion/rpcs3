@@ -545,7 +545,7 @@ public:
 	spu_channel_t ch_tag_stat;
 	u32 ch_stall_mask;
 	spu_channel_t ch_stall_stat;
-	spu_channel_t ch_atomic_stat;
+	u32 ch_atomic_stat = MFC_ATOMIC_EMPTY;
 
 	spu_channel_4_t ch_in_mbox;
 

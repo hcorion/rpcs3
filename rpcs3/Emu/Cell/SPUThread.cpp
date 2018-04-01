@@ -355,7 +355,6 @@ void SPUThread::cpu_init()
 	ch_tag_stat.data.store({});
 	ch_stall_mask = 0;
 	ch_stall_stat.data.store({});
-	ch_atomic_stat.data.store({});
 
 	ch_in_mbox.clear();
 
@@ -1043,7 +1042,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 			_xend();
 
 			_ref<decltype(rdata)>(args.lsa & 0x3ffff) = rdata;
-			ch_atomic_stat.set_value(MFC_GETLLAR_SUCCESS);
+			ch_atomic_stat = MFC_GETLLAR_SUCCESS;
 			return true;
 		}
 		else
@@ -1064,7 +1063,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 		// Copy to LS
 		_ref<decltype(rdata)>(args.lsa & 0x3ffff) = rdata;
 
-		ch_atomic_stat.set_value(MFC_GETLLAR_SUCCESS);
+		ch_atomic_stat = MFC_GETLLAR_SUCCESS;
 		return true;
 	}
 
@@ -1114,11 +1113,11 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 
 		if (result)
 		{
-			ch_atomic_stat.set_value(MFC_PUTLLC_SUCCESS);
+			ch_atomic_stat = MFC_PUTLLC_SUCCESS;
 		}
 		else
 		{
-			ch_atomic_stat.set_value(MFC_PUTLLC_FAILURE);
+			ch_atomic_stat = MFC_PUTLLC_FAILURE;
 		}
 
 		if (raddr && !result)
@@ -1157,7 +1156,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 			vm::notify(args.eal, 128);
 			_xend();
 
-			ch_atomic_stat.set_value(MFC_PUTLLUC_SUCCESS);
+			ch_atomic_stat = MFC_PUTLLUC_SUCCESS;
 			return true;
 		}
 
@@ -1166,7 +1165,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 		vm::reservation_update(args.eal, 128);
 		vm::notify(args.eal, 128);
 
-		ch_atomic_stat.set_value(MFC_PUTLLUC_SUCCESS);
+		ch_atomic_stat = MFC_PUTLLUC_SUCCESS;
 		return true;
 	}
 	case MFC_PUTQLLUC_CMD:
@@ -1367,7 +1366,7 @@ u32 SPUThread::get_ch_count(u32 ch)
 	case MFC_WrTagUpdate:     return ch_tag_upd == 0;
 	case SPU_RdSigNotify1:    return ch_snr1.get_count();
 	case SPU_RdSigNotify2:    return ch_snr2.get_count();
-	case MFC_RdAtomicStat:    return ch_atomic_stat.get_count();
+	case MFC_RdAtomicStat:    return ch_atomic_stat != MFC_ATOMIC_EMPTY;
 	case SPU_RdEventStat:     return get_events() != 0;
 	case MFC_Cmd:             return 16 - mfc_size;
 	}
@@ -1465,15 +1464,17 @@ bool SPUThread::get_ch_value(u32 ch, u32& out)
 
 	case MFC_RdAtomicStat:
 	{
-		if (ch_atomic_stat.get_count())
+		if (ch_atomic_stat != MFC_ATOMIC_EMPTY)
 		{
-			out = ch_atomic_stat.get_value();
-			ch_atomic_stat.set_value(0, false);
+			out = std::exchange(ch_atomic_stat, MFC_ATOMIC_EMPTY);
 			return true;
 		}
 
-		// Will stall infinitely
-		return read_channel(ch_atomic_stat);
+		// This channel data is available only when immediate atomic commands finish
+		// But there is no pending atomic commands when it gets to this line
+		// Since immediate atomic commands executed within the spu thread and finish immediately after spawn
+		// On real hw this stall can be fine though
+		break;
 	}
 
 	case MFC_RdListStallStat:
