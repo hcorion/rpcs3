@@ -285,7 +285,7 @@ spu_recompiler::XmmLink spu_recompiler::XmmGet(s8 reg, XmmType type) // get xmm 
 	case XmmType::Int: c->movdqa(result, SPU_OFF_128(gpr, reg)); break;
 	case XmmType::Float: c->movaps(result, SPU_OFF_128(gpr, reg)); break;
 	case XmmType::Double: c->movapd(result, SPU_OFF_128(gpr, reg)); break;
-	default: fmt::throw_exception("Invalid XmmType" HERE);
+	default: ASSUME(0);
 	}
 
 	return result;

@@ -524,7 +524,7 @@ void SPUThread::push_snr(u32 number, u32 value)
 
 void SPUThread::do_dma_transfer(const spu_mfc_cmd& args)
 {
-	const bool is_get = (args.cmd & ~(MFC_BARRIER_MASK | MFC_FENCE_MASK | MFC_START_MASK)) == MFC_GET_CMD;
+	const u8 is_get = args.cmd & MFC_GET_CMD;
 
 	u32 eal = args.eal;
 	u32 lsa = args.lsa & 0x3ffff;
@@ -613,35 +613,22 @@ void SPUThread::do_dma_transfer(const spu_mfc_cmd& args)
 	}
 	case 4:
 	{
-		//if (is_get && !from_mfc)
-		{
-			*static_cast<u32*>(dst) = *static_cast<const u32*>(src);
-			break;
-		}
-
-		//_mm_stream_si32(static_cast<s32*>(dst), *static_cast<const s32*>(src));
+		*static_cast<u32*>(dst) = *static_cast<const u32*>(src);
 		break;
 	}
 	case 8:
 	{
-		//if (is_get && !from_mfc)
-		{
-			*static_cast<u64*>(dst) = *static_cast<const u64*>(src);
-			break;
-		}
-
-		//_mm_stream_si64(static_cast<s64*>(dst), *static_cast<const s64*>(src));
+		*static_cast<u64*>(dst) = *static_cast<const u64*>(src);
 		break;
 	}
 	default:
 	{
 		auto vdst = static_cast<__m128i*>(dst);
 		auto vsrc = static_cast<const __m128i*>(src);
-		auto vcnt = size / sizeof(__m128i);
 
 		//if (is_get && !from_mfc)
 		{
-			while (vcnt >= 8)
+			while (size >= 128)
 			{
 				const __m128i data[]
 				{
@@ -664,52 +651,20 @@ void SPUThread::do_dma_transfer(const spu_mfc_cmd& args)
 				_mm_store_si128(vdst + 6, data[6]);
 				_mm_store_si128(vdst + 7, data[7]);
 
-				vcnt -= 8;
+				size -= 128;
 				vsrc += 8;
 				vdst += 8;
 			}
 
-			while (vcnt--)
+			while (size)
 			{
+				size -= 16;
 				_mm_store_si128(vdst++, _mm_load_si128(vsrc++));
 			}
 
 			break;
 		}
 
-		// Disabled
-		while (vcnt >= 8)
-		{
-			const __m128i data[]
-			{
-				_mm_load_si128(vsrc + 0),
-				_mm_load_si128(vsrc + 1),
-				_mm_load_si128(vsrc + 2),
-				_mm_load_si128(vsrc + 3),
-				_mm_load_si128(vsrc + 4),
-				_mm_load_si128(vsrc + 5),
-				_mm_load_si128(vsrc + 6),
-				_mm_load_si128(vsrc + 7),
-			};
-
-			_mm_stream_si128(vdst + 0, data[0]);
-			_mm_stream_si128(vdst + 1, data[1]);
-			_mm_stream_si128(vdst + 2, data[2]);
-			_mm_stream_si128(vdst + 3, data[3]);
-			_mm_stream_si128(vdst + 4, data[4]);
-			_mm_stream_si128(vdst + 5, data[5]);
-			_mm_stream_si128(vdst + 6, data[6]);
-			_mm_stream_si128(vdst + 7, data[7]);
-
-			vcnt -= 8;
-			vsrc += 8;
-			vdst += 8;
-		}
-
-		while (vcnt--)
-		{
-			_mm_stream_si128(vdst++, _mm_load_si128(vsrc++));
-		}
 	}
 	}
 
@@ -997,7 +952,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 	spu::scheduler::concurrent_execution_watchdog watchdog(*this);
 	LOG_TRACE(SPU, "DMAC: cmd=%s, lsa=0x%x, ea=0x%llx, tag=0x%x, size=0x%x", args.cmd, args.lsa, args.eal, args.tag, args.size);
 
-	switch (args.cmd)
+	switch (args.cmd & ~(MFC_BARRIER_MASK | MFC_FENCE_MASK))
 	{
 	case MFC_GETLLAR_CMD:
 	{
@@ -1185,21 +1140,13 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 		return true;
 	}
 	case MFC_SNDSIG_CMD:
-	case MFC_SNDSIGB_CMD:
-	case MFC_SNDSIGF_CMD:
 	{
 		args.size = 4;
 		// Fallthrough
 	}
 	case MFC_PUT_CMD:
-	case MFC_PUTB_CMD:
-	case MFC_PUTF_CMD:
 	case MFC_PUTR_CMD:
-	case MFC_PUTRB_CMD:
-	case MFC_PUTRF_CMD:
 	case MFC_GET_CMD:
-	case MFC_GETB_CMD:
-	case MFC_GETF_CMD:
 	{
 		if (LIKELY(args.size <= 0x4000))
 		{
@@ -1234,14 +1181,8 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 		break;
 	}
 	case MFC_PUTL_CMD:
-	case MFC_PUTLB_CMD:
-	case MFC_PUTLF_CMD:
 	case MFC_PUTRL_CMD:
-	case MFC_PUTRLB_CMD:
-	case MFC_PUTRLF_CMD:
 	case MFC_GETL_CMD:
-	case MFC_GETLB_CMD:
-	case MFC_GETLF_CMD:
 	{
 		if (LIKELY(args.size <= 0x4000))
 		{
@@ -1361,8 +1302,6 @@ void SPUThread::set_interrupt_status(bool enable)
 
 u32 SPUThread::get_ch_count(u32 ch)
 {
-	LOG_TRACE(SPU, "get_ch_count(ch=%d [%s])", ch, ch < 128 ? spu_ch_name[ch] : "???");
-
 	switch (ch)
 	{
 	case SPU_WrOutMbox:       return ch_out_mbox.get_count() ^ 1;
@@ -1383,8 +1322,6 @@ u32 SPUThread::get_ch_count(u32 ch)
 
 bool SPUThread::get_ch_value(u32 ch, u32& out)
 {
-	LOG_TRACE(SPU, "get_ch_value(ch=%d [%s])", ch, ch < 128 ? spu_ch_name[ch] : "???");
-
 	auto read_channel = [&](spu_channel_t& channel)
 	{
 		for (int i = 0; i < 10 && channel.get_count() == 0; i++)
@@ -1445,7 +1382,7 @@ bool SPUThread::get_ch_value(u32 ch, u32& out)
 		if (ch_tag_stat.get_count())
 		{
 			out = ch_tag_stat.get_value();
-			ch_tag_stat.set_value(0, false);
+			ch_tag_stat.data.raw().count = false;
 			return true;
 		}
 
@@ -1489,7 +1426,7 @@ bool SPUThread::get_ch_value(u32 ch, u32& out)
 		if (ch_stall_stat.get_count())
 		{
 			out = ch_stall_stat.get_value();
-			ch_stall_stat.set_value(0, false);
+			ch_stall_stat.data.raw().count = false;
 			return true;
 		}
 
@@ -1564,8 +1501,6 @@ bool SPUThread::get_ch_value(u32 ch, u32& out)
 
 bool SPUThread::set_ch_value(u32 ch, u32 value)
 {
-	LOG_TRACE(SPU, "set_ch_value(ch=%d [%s], value=0x%x)", ch, ch < 128 ? spu_ch_name[ch] : "???", value);
-
 	switch (ch)
 	{
 	case SPU_WrSRR0:

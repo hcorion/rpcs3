@@ -225,7 +225,6 @@ public:
 			}
 
 			data.count = false;
-			data.value = 0; // ???
 		});
 
 		return old.count;
