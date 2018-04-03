@@ -312,6 +312,12 @@ std::string SPUThread::dump() const
 {
 	std::string ret = cpu_thread::dump();
 
+	if (s_use_rtm)
+	{
+		// Print some transaction statistics
+		fmt::append(ret, "\nTX: %u; Fail: %u", tx_success, tx_failure);
+	}
+
 	fmt::append(ret, "\nTag Mask: 0x%08x", ch_tag_mask);
 	fmt::append(ret, "\nMFC Stall: 0x%08x", ch_stall_mask);
 	fmt::append(ret, "\nMFC Queue Size: %u", mfc_size);
@@ -841,8 +847,14 @@ bool SPUThread::do_list_transfer(spu_mfc_cmd& args)
 	return true;
 }
 
-bool SPUThread::do_putlluc(const spu_mfc_cmd& args)
+void SPUThread::do_putlluc(const spu_mfc_cmd& args)
 {
+	if (raddr && args.eal == raddr)
+	{
+		ch_event_stat |= SPU_EVENT_LR;
+		raddr = 0;
+	}
+
 	const u32 addr = args.eal;
 	auto& data = vm::_ref<decltype(rdata)>(addr);
 	const auto to_write = _ref<decltype(rdata)>(args.lsa & 0x3ffff);
@@ -852,7 +864,8 @@ bool SPUThread::do_putlluc(const spu_mfc_cmd& args)
 	// Store unconditionally
 	if (s_use_rtm && utils::transaction_enter())
 	{
-		if (!vm::reader_lock{vm::try_to_lock})
+		// First transaction attempt
+		if (!vm::g_mutex.is_lockable())
 		{
 			_xabort(0);
 		}
@@ -861,16 +874,34 @@ bool SPUThread::do_putlluc(const spu_mfc_cmd& args)
 		vm::reservation_update(addr, 128);
 		vm::notify(addr, 128);
 		_xend();
+		tx_success++;
+		return;
 	}
-	else
+	else if (s_use_rtm)
 	{
-		vm::writer_lock lock(0);
-		data = to_write;
-		vm::reservation_update(addr, 128);
-		vm::notify(addr, 128);
+		vm::reader_lock lock;
+
+		if (utils::transaction_enter())
+		{
+			// Second transaction attempt
+			data = to_write;
+			vm::reservation_update(addr, 128);
+			_xend();
+			tx_success++;
+
+			vm::notify(addr, 128);
+			return;
+		}
 	}
 
-	return true;
+	tx_failure++;
+	vm::writer_lock lock(0);
+	vm::reservation_update(addr, 128, true);
+	_mm_sfence();
+	data = to_write;
+	_mm_sfence();
+	vm::reservation_update(addr, 128);
+	vm::notify(addr, 128);
 }
 
 void SPUThread::do_mfc()
@@ -940,19 +971,11 @@ void SPUThread::do_mfc()
 
 		if (args.cmd == MFC_PUTQLLUC_CMD)
 		{
-			if (do_putlluc(args))
-			{
-				removed++;
-				return true;
-			}
-
-			barrier |= -1;
-			return false;
+			do_putlluc(args);
 		}
-
-		// Also ignore MFC_SYNC_CMD
-		if (args.size)
+		else if (args.size)
 		{
+			// Zero size is also used to process MFC_SYNC_CMD correctly
 			do_dma_transfer(args);
 		}
 
@@ -1058,29 +1081,25 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 		}
 		else if (s_use_rtm && utils::transaction_enter())
 		{
-			if (!vm::reader_lock{vm::try_to_lock})
+			rtime = vm::reservation_acquire(raddr, 128);
+
+			// Check LSB: unconditional atomic store may be in progress
+			if (rtime & 1)
 			{
 				_xabort(0);
 			}
 
-			rtime = vm::reservation_acquire(raddr, 128);
 			rdata = data;
 			_xend();
+			tx_success++;
 
 			_ref<decltype(rdata)>(args.lsa & 0x3ffff) = rdata;
 			ch_atomic_stat.set_value(MFC_GETLLAR_SUCCESS);
 			return true;
 		}
-		else
-		{
-			rdata = data;
-			_mm_lfence();
-		}
 
-		// Hack: ensure no other atomic updates have happened during reading the data
-		if (is_polling || UNLIKELY(vm::reservation_acquire(raddr, 128) != rtime))
 		{
-			// TODO: vm::check_addr
+			tx_failure++;
 			vm::reader_lock lock;
 			rtime = vm::reservation_acquire(raddr, 128);
 			rdata = data;
@@ -1088,7 +1107,6 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 
 		// Copy to LS
 		_ref<decltype(rdata)>(args.lsa & 0x3ffff) = rdata;
-
 		ch_atomic_stat.set_value(MFC_GETLLAR_SUCCESS);
 		return true;
 	}
@@ -1101,12 +1119,13 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 
 		bool result = false;
 
-		if (raddr == args.eal && rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
+		if (raddr == args.eal)
 		{
 			// TODO: vm::check_addr
 			if (s_use_rtm && utils::transaction_enter())
 			{
-				if (!vm::reader_lock{vm::try_to_lock})
+				// First transaction attempt
+				if (!vm::g_mutex.is_lockable())
 				{
 					_xabort(0);
 				}
@@ -1121,9 +1140,40 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 				}
 
 				_xend();
+				tx_success++;
 			}
-			else
+			else if (s_use_rtm)
 			{
+				// Second transaction attempt
+				vm::reader_lock lock;
+
+				if (utils::transaction_enter())
+				{
+					if (rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
+					{
+						data = to_write;
+						result = true;
+
+						vm::reservation_update(raddr, 128);
+					}
+					_xend();
+					tx_success++;
+
+					if (result)
+					{
+						// First attempt typically fails on notification attempt
+						vm::notify(raddr, 128);
+					}
+				}
+				else
+				{
+					// Don't fallback to heavyweight lock, just give up
+					tx_failure++;
+				}
+			}
+			else if (rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
+			{
+				// Full lock (heavyweight)
 				vm::writer_lock lock;
 
 				if (rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
@@ -1134,6 +1184,8 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 					vm::reservation_update(raddr, 128);
 					vm::notify(raddr, 128);
 				}
+
+				tx_failure++;
 			}
 		}
 
@@ -1156,49 +1208,19 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 	}
 	case MFC_PUTLLUC_CMD:
 	{
-		if (raddr && args.eal == raddr)
-		{
-			ch_event_stat |= SPU_EVENT_LR;
-			raddr = 0;
-		}
-
-		auto& data = vm::_ref<decltype(rdata)>(args.eal);
-		const auto to_write = _ref<decltype(rdata)>(args.lsa & 0x3ffff);
-
-		vm::reservation_acquire(args.eal, 128);
-
-		// Store unconditionally
-		// TODO: vm::check_addr
-
-		if (s_use_rtm && utils::transaction_enter())
-		{
-			if (!vm::reader_lock{vm::try_to_lock})
-			{
-				_xabort(0);
-			}
-
-			data = to_write;
-			vm::reservation_update(args.eal, 128);
-			vm::notify(args.eal, 128);
-			_xend();
-
-			ch_atomic_stat.set_value(MFC_PUTLLUC_SUCCESS);
-			return true;
-		}
-
-		vm::writer_lock lock(0);
-		data = to_write;
-		vm::reservation_update(args.eal, 128);
-		vm::notify(args.eal, 128);
-
+		do_putlluc(args);
 		ch_atomic_stat.set_value(MFC_PUTLLUC_SUCCESS);
 		return true;
 	}
 	case MFC_PUTQLLUC_CMD:
 	{
-		if (UNLIKELY(!do_dma_check(args) || !do_putlluc(args)))
+		if (UNLIKELY(!do_dma_check(args)))
 		{
 			mfc_queue[mfc_size++] = args;
+		}
+		else
+		{
+			do_putlluc(args);
 		}
 
 		return true;
