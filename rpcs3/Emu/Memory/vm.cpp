@@ -244,16 +244,22 @@ namespace vm
 	// Memory pages
 	std::array<memory_page, 0x100000000 / 4096> g_pages{};
 
-	u64 reservation_acquire(u32 addr, u32 _size)
+	u64 reservation_acquire(const u32 addr, u32 _size)
 	{
 		// Access reservation info: stamp and the lock bit
 		return g_pages[addr >> 12][addr].load(std::memory_order_acquire);
 	}
 
-	void reservation_update(u32 addr, u32 _size)
+	void reservation_update(const u32 addr, u32 _size)
 	{
 		// Update reservation info with new timestamp (unsafe, assume allocated)
 		(*g_pages[addr >> 12].reservations)[(addr & 0xfff) >> 7].store(__rdtsc(), std::memory_order_release);
+	}
+
+	bool check_reservation(const u32 addr)
+	{
+		// Checks if the reservation info exists
+		return g_pages[addr >> 12].reservations.raw();
 	}
 
 	void waiter::init()

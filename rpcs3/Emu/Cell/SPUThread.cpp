@@ -809,10 +809,21 @@ bool SPUThread::do_list_transfer(spu_mfc_cmd& args)
 bool SPUThread::do_putlluc(const spu_mfc_cmd& args)
 {
 	const u32 addr = args.eal;
+
+	if (args.eal == raddr)
+	{
+		raddr = 0;
+		ch_event_stat |= SPU_EVENT_LR;
+	}
+
+	// Check if the reservation info exists before updating it
+	if (vm::check_reservation(addr))
+	{
+		vm::reservation_update(addr, 128);
+	}
+
 	auto& data = vm::_ref<decltype(rdata)>(addr);
 	const auto to_write = _ref<decltype(rdata)>(args.lsa & 0x3ffff);
-
-	vm::reservation_acquire(addr, 128);
 
 	// Store unconditionally
 	if (s_use_rtm && utils::transaction_enter())
@@ -823,18 +834,14 @@ bool SPUThread::do_putlluc(const spu_mfc_cmd& args)
 		}
 
 		data = to_write;
-		vm::reservation_update(addr, 128);
 		vm::notify(addr, 128);
 		_xend();
-	}
-	else
-	{
-		vm::writer_lock lock(0);
-		data = to_write;
-		vm::reservation_update(addr, 128);
-		vm::notify(addr, 128);
+		return true;
 	}
 
+	vm::writer_lock lock(0);
+	data = to_write;
+	vm::notify(addr, 128);
 	return true;
 }
 
@@ -1074,8 +1081,9 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 		const auto to_write = _ref<decltype(rdata)>(args.lsa & 0x3ffff);
 
 		bool result = false;
+		ch_atomic_stat = MFC_PUTLLC_SUCCESS;
 
-		if (raddr == args.eal && rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
+		if (raddr == args.eal)
 		{
 			// TODO: vm::check_addr
 			if (s_use_rtm && utils::transaction_enter())
@@ -1111,18 +1119,13 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 			}
 		}
 
-		if (result)
-		{
-			ch_atomic_stat = MFC_PUTLLC_SUCCESS;
-		}
-		else
+		if (!result)
 		{
 			ch_atomic_stat = MFC_PUTLLC_FAILURE;
-		}
-
-		if (raddr && !result)
-		{
-			ch_event_stat |= SPU_EVENT_LR;
+			if (raddr)
+			{
+				ch_event_stat |= SPU_EVENT_LR;
+			}
 		}
 
 		raddr = 0;
@@ -1130,16 +1133,22 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 	}
 	case MFC_PUTLLUC_CMD:
 	{
-		if (raddr && args.eal == raddr)
+		const u32 addr = args.eal;
+
+		if (args.eal == raddr)
 		{
 			ch_event_stat |= SPU_EVENT_LR;
 			raddr = 0;
 		}
 
-		auto& data = vm::_ref<decltype(rdata)>(args.eal);
-		const auto to_write = _ref<decltype(rdata)>(args.lsa & 0x3ffff);
+		// Check if the reservation info exists before updating it
+		if (vm::check_reservation(addr))
+		{
+			vm::reservation_update(addr, 128);
+		}
 
-		vm::reservation_acquire(args.eal, 128);
+		auto& data = vm::_ref<decltype(rdata)>(addr);
+		const auto to_write = _ref<decltype(rdata)>(args.lsa & 0x3ffff);
 
 		// Store unconditionally
 		// TODO: vm::check_addr
@@ -1152,8 +1161,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 			}
 
 			data = to_write;
-			vm::reservation_update(args.eal, 128);
-			vm::notify(args.eal, 128);
+			vm::notify(addr, 128);
 			_xend();
 
 			ch_atomic_stat = MFC_PUTLLUC_SUCCESS;
@@ -1162,8 +1170,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 
 		vm::writer_lock lock(0);
 		data = to_write;
-		vm::reservation_update(args.eal, 128);
-		vm::notify(args.eal, 128);
+		vm::notify(addr, 128);
 
 		ch_atomic_stat = MFC_PUTLLUC_SUCCESS;
 		return true;
