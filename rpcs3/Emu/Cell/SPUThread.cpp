@@ -312,6 +312,12 @@ std::string SPUThread::dump() const
 {
 	std::string ret = cpu_thread::dump();
 
+	if (s_use_rtm)
+	{
+		// Print some transaction statistics
+		fmt::append(ret, "\nTX: %u; Fail: %u", tx_success, tx_failure);
+	}
+
 	fmt::append(ret, "\nTag Mask: 0x%08x", ch_tag_mask);
 	fmt::append(ret, "\nMFC Stall: 0x%08x", ch_stall_mask);
 	fmt::append(ret, "\nMFC Queue Size: %u", mfc_size);
@@ -349,6 +355,8 @@ void SPUThread::cpu_init()
 
 	srr0 = 0;
 	mfc_size = 0;
+	mfc_barrier = -1;
+	mfc_fence = -1;
 	ch_tag_upd = 0;
 	ch_tag_mask = 0;
 	mfc_prxy_mask = 0;
@@ -481,6 +489,18 @@ void SPUThread::cpu_task()
 			break;
 		}
 	}
+}
+
+void SPUThread::cpu_mem()
+{
+	mfc_barrier = -1;
+	mfc_fence = -1;
+}
+
+void SPUThread::cpu_unmem()
+{
+	mfc_barrier = -1;
+	mfc_fence = -1;
 }
 
 SPUThread::~SPUThread()
@@ -722,20 +742,52 @@ void SPUThread::do_dma_transfer(const spu_mfc_cmd& args)
 
 bool SPUThread::do_dma_check(const spu_mfc_cmd& args)
 {
-	for (u32 i = 0; i < mfc_size; i++)
-	{
-		if (mfc_queue[i].cmd == MFC_BARRIER_CMD)
-		{
-			return false;
-		}
+	const u32 mask = 1u << args.tag;
 
-		if (mfc_queue[i].tag == args.tag && mfc_queue[i].cmd != MFC_EIEIO_CMD)
+	if (UNLIKELY(mfc_barrier & mask || (args.cmd & MFC_FENCE_MASK && mfc_fence & mask)))
+	{
+		// Check for special value combination (normally impossible)
+		if (UNLIKELY(mfc_barrier == -1 && mfc_fence == -1))
 		{
-			if (args.cmd & MFC_FENCE_MASK || mfc_queue[i].cmd & MFC_BARRIER_MASK)
+			// Update barrier/fence masks if necessary
+			mfc_barrier = 0;
+			mfc_fence = 0;
+
+			for (u32 i = 0; i < mfc_size; i++)
 			{
+				if (mfc_queue[i].cmd == MFC_BARRIER_CMD)
+				{
+					mfc_barrier |= -1;
+					continue;
+				}
+
+				if (mfc_queue[i].cmd != MFC_EIEIO_CMD)
+				{
+					const u32 _mask = 1u << mfc_queue[i].tag;
+
+					// A command with barrier hard blocks that tag until it's been dealt with
+					if (mfc_queue[i].cmd & MFC_BARRIER_MASK)
+					{
+						mfc_barrier |= _mask;
+					}
+
+					// A new command that has a fence can't be executed until the stalled list has been dealt with
+					mfc_fence |= _mask;
+				}
+			}
+
+			if (mfc_barrier & mask || (args.cmd & MFC_FENCE_MASK && mfc_fence & mask))
+			{
+				mfc_barrier = -1;
+				mfc_fence = -1;
 				return false;
 			}
+
+			vm::passive_lock(*this);
+			return true;
 		}
+
+		return false;
 	}
 
 	return true;
@@ -743,8 +795,6 @@ bool SPUThread::do_dma_check(const spu_mfc_cmd& args)
 
 bool SPUThread::do_list_transfer(spu_mfc_cmd& args)
 {
-	vm::reader_lock lock;
-
 	struct list_element
 	{
 		be_t<u16> sb; // Stall-and-Notify bit (0x8000)
@@ -777,16 +827,6 @@ bool SPUThread::do_list_transfer(spu_mfc_cmd& args)
 
 		if (size)
 		{
-			if (!vm::check_addr(addr, size, vm::page_allocated | vm::page_readable | (args.cmd & MFC_PUT_CMD ? vm::page_writable : 0)) && args.eal < RAW_SPU_BASE_ADDR)
-			{
-				Emu.Pause();
-				state += cpu_flag::stop;
-				LOG_FATAL(SPU, "Access violation %s location 0x%x (%s, size=0x%x)",
-					args.cmd & MFC_PUT_CMD ? "writing" : "reading", addr, args.cmd, size);
-
-				return false;
-			}
-
 			spu_mfc_cmd transfer;
 			transfer.eal  = addr;
 			transfer.eah  = 0;
@@ -807,8 +847,14 @@ bool SPUThread::do_list_transfer(spu_mfc_cmd& args)
 	return true;
 }
 
-bool SPUThread::do_putlluc(const spu_mfc_cmd& args)
+void SPUThread::do_putlluc(const spu_mfc_cmd& args)
 {
+	if (raddr && args.eal == raddr)
+	{
+		ch_event_stat |= SPU_EVENT_LR;
+		raddr = 0;
+	}
+
 	const u32 addr = args.eal;
 	auto& data = vm::_ref<decltype(rdata)>(addr);
 	const auto to_write = _ref<decltype(rdata)>(args.lsa & 0x3ffff);
@@ -818,7 +864,8 @@ bool SPUThread::do_putlluc(const spu_mfc_cmd& args)
 	// Store unconditionally
 	if (s_use_rtm && utils::transaction_enter())
 	{
-		if (!vm::reader_lock{vm::try_to_lock})
+		// First transaction attempt
+		if (!vm::g_mutex.is_lockable())
 		{
 			_xabort(0);
 		}
@@ -827,16 +874,34 @@ bool SPUThread::do_putlluc(const spu_mfc_cmd& args)
 		vm::reservation_update(addr, 128);
 		vm::notify(addr, 128);
 		_xend();
+		tx_success++;
+		return;
 	}
-	else
+	else if (s_use_rtm)
 	{
-		vm::writer_lock lock(0);
-		data = to_write;
-		vm::reservation_update(addr, 128);
-		vm::notify(addr, 128);
+		vm::reader_lock lock;
+
+		if (utils::transaction_enter())
+		{
+			// Second transaction attempt
+			data = to_write;
+			vm::reservation_update(addr, 128);
+			_xend();
+			tx_success++;
+
+			vm::notify(addr, 128);
+			return;
+		}
 	}
 
-	return true;
+	tx_failure++;
+	vm::writer_lock lock(0);
+	vm::reservation_update(addr, 128, true);
+	_mm_sfence();
+	data = to_write;
+	_mm_sfence();
+	vm::reservation_update(addr, 128);
+	vm::notify(addr, 128);
 }
 
 void SPUThread::do_mfc()
@@ -844,6 +909,12 @@ void SPUThread::do_mfc()
 	u32 removed = 0;
 	u32 barrier = 0;
 	u32 fence = 0;
+
+	// Check special value
+	if (UNLIKELY(mfc_barrier == -1 && mfc_fence == -1))
+	{
+		vm::passive_lock(*this);
+	}
 
 	// Process enqueued commands
 	std::remove_if(mfc_queue + 0, mfc_queue + mfc_size, [&](spu_mfc_cmd& args)
@@ -861,7 +932,7 @@ void SPUThread::do_mfc()
 			if (args.cmd == MFC_BARRIER_CMD)
 			{
 				// Block all tags
-				barrier |= 0xffffffffu;
+				barrier |= -1;
 			}
 
 			return false;
@@ -870,15 +941,9 @@ void SPUThread::do_mfc()
 		// Select tag bit in the tag mask or the stall mask
 		const u32 mask = 1u << args.tag;
 
-		// A list with barrier hard blocks that tag until it's been dealt with
 		if (barrier & mask)
 		{
-			return false;
-		}
-
-		// A new command that has a fence can't be executed until the stalled list has been dealt with
-		if (args.cmd & MFC_FENCE_MASK && fence & mask)
-		{
+			fence |= mask;
 			return false;
 		}
 
@@ -890,8 +955,6 @@ void SPUThread::do_mfc()
 				return true;
 			}
 
-			fence |= mask;
-
 			if (args.cmd & MFC_BARRIER_MASK)
 			{
 				barrier |= mask;
@@ -899,41 +962,20 @@ void SPUThread::do_mfc()
 
 			if (test(state, cpu_flag::stop))
 			{
-				barrier |= 0xffffffffu;
+				barrier |= -1;
 			}
 
+			fence |= mask;
 			return false;
 		}
 
 		if (args.cmd == MFC_PUTQLLUC_CMD)
 		{
-			if (do_putlluc(args))
-			{
-				removed++;
-				return true;
-			}
-
-			barrier |= 0xffffffffu;
-			return false;
+			do_putlluc(args);
 		}
-
-		// Also ignore MFC_SYNC_CMD
-		if (args.size)
+		else if (args.size)
 		{
-			vm::reader_lock lock;
-
-			if (!vm::check_addr(args.eal, args.size, vm::page_allocated | vm::page_readable | (args.cmd & MFC_PUT_CMD ? vm::page_writable : 0)) && args.eal < RAW_SPU_BASE_ADDR)
-			{
-				Emu.Pause();
-				state += cpu_flag::stop;
-				LOG_FATAL(SPU, "Access violation %s location 0x%x (%s, size=0x%x)",
-					args.cmd & MFC_PUT_CMD ? "writing" : "reading",
-					args.eal, args.cmd, args.size);
-
-				barrier |= 0xffffffffu;
-				return false;
-			}
-
+			// Zero size is also used to process MFC_SYNC_CMD correctly
 			do_dma_transfer(args);
 		}
 
@@ -942,6 +984,8 @@ void SPUThread::do_mfc()
 	});
 
 	mfc_size -= removed;
+	mfc_barrier = barrier;
+	mfc_fence = fence;
 
 	if (removed && ch_tag_upd)
 	{
@@ -980,6 +1024,8 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 	// Stall infinitely if MFC queue is full
 	while (mfc_size >= 16)
 	{
+		vm::temporary_unlock(*this);
+
 		if (test(state, cpu_flag::stop))
 		{
 			return false;
@@ -1023,6 +1069,8 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 
 			while (vm::reservation_acquire(raddr, 128) == waiter.stamp && rdata == data)
 			{
+				vm::temporary_unlock(*this);
+
 				if (test(state, cpu_flag::stop))
 				{
 					break;
@@ -1033,29 +1081,25 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 		}
 		else if (s_use_rtm && utils::transaction_enter())
 		{
-			if (!vm::reader_lock{vm::try_to_lock})
+			rtime = vm::reservation_acquire(raddr, 128);
+
+			// Check LSB: unconditional atomic store may be in progress
+			if (rtime & 1)
 			{
 				_xabort(0);
 			}
 
-			rtime = vm::reservation_acquire(raddr, 128);
 			rdata = data;
 			_xend();
+			tx_success++;
 
 			_ref<decltype(rdata)>(args.lsa & 0x3ffff) = rdata;
 			ch_atomic_stat.set_value(MFC_GETLLAR_SUCCESS);
 			return true;
 		}
-		else
-		{
-			rdata = data;
-			_mm_lfence();
-		}
 
-		// Hack: ensure no other atomic updates have happened during reading the data
-		if (is_polling || UNLIKELY(vm::reservation_acquire(raddr, 128) != rtime))
 		{
-			// TODO: vm::check_addr
+			tx_failure++;
 			vm::reader_lock lock;
 			rtime = vm::reservation_acquire(raddr, 128);
 			rdata = data;
@@ -1063,7 +1107,6 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 
 		// Copy to LS
 		_ref<decltype(rdata)>(args.lsa & 0x3ffff) = rdata;
-
 		ch_atomic_stat.set_value(MFC_GETLLAR_SUCCESS);
 		return true;
 	}
@@ -1076,12 +1119,13 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 
 		bool result = false;
 
-		if (raddr == args.eal && rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
+		if (raddr == args.eal)
 		{
 			// TODO: vm::check_addr
 			if (s_use_rtm && utils::transaction_enter())
 			{
-				if (!vm::reader_lock{vm::try_to_lock})
+				// First transaction attempt
+				if (!vm::g_mutex.is_lockable())
 				{
 					_xabort(0);
 				}
@@ -1096,9 +1140,40 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 				}
 
 				_xend();
+				tx_success++;
 			}
-			else
+			else if (s_use_rtm)
 			{
+				// Second transaction attempt
+				vm::reader_lock lock;
+
+				if (utils::transaction_enter())
+				{
+					if (rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
+					{
+						data = to_write;
+						result = true;
+
+						vm::reservation_update(raddr, 128);
+					}
+					_xend();
+					tx_success++;
+
+					if (result)
+					{
+						// First attempt typically fails on notification attempt
+						vm::notify(raddr, 128);
+					}
+				}
+				else
+				{
+					// Don't fallback to heavyweight lock, just give up
+					tx_failure++;
+				}
+			}
+			else if (rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
+			{
+				// Full lock (heavyweight)
 				vm::writer_lock lock;
 
 				if (rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
@@ -1109,6 +1184,8 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 					vm::reservation_update(raddr, 128);
 					vm::notify(raddr, 128);
 				}
+
+				tx_failure++;
 			}
 		}
 
@@ -1131,49 +1208,19 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 	}
 	case MFC_PUTLLUC_CMD:
 	{
-		if (raddr && args.eal == raddr)
-		{
-			ch_event_stat |= SPU_EVENT_LR;
-			raddr = 0;
-		}
-
-		auto& data = vm::_ref<decltype(rdata)>(args.eal);
-		const auto to_write = _ref<decltype(rdata)>(args.lsa & 0x3ffff);
-
-		vm::reservation_acquire(args.eal, 128);
-
-		// Store unconditionally
-		// TODO: vm::check_addr
-
-		if (s_use_rtm && utils::transaction_enter())
-		{
-			if (!vm::reader_lock{vm::try_to_lock})
-			{
-				_xabort(0);
-			}
-
-			data = to_write;
-			vm::reservation_update(args.eal, 128);
-			vm::notify(args.eal, 128);
-			_xend();
-
-			ch_atomic_stat.set_value(MFC_PUTLLUC_SUCCESS);
-			return true;
-		}
-
-		vm::writer_lock lock(0);
-		data = to_write;
-		vm::reservation_update(args.eal, 128);
-		vm::notify(args.eal, 128);
-
+		do_putlluc(args);
 		ch_atomic_stat.set_value(MFC_PUTLLUC_SUCCESS);
 		return true;
 	}
 	case MFC_PUTQLLUC_CMD:
 	{
-		if (UNLIKELY(!do_dma_check(args) || !do_putlluc(args)))
+		if (UNLIKELY(!do_dma_check(args)))
 		{
 			mfc_queue[mfc_size++] = args;
+		}
+		else
+		{
+			do_putlluc(args);
 		}
 
 		return true;
@@ -1205,20 +1252,6 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 
 			if (LIKELY(args.size))
 			{
-				vm::reader_lock lock;
-
-				if (!vm::check_addr(args.eal, args.size, vm::page_allocated | vm::page_readable | (args.cmd & MFC_PUT_CMD ? vm::page_writable : 0)) && args.eal < RAW_SPU_BASE_ADDR)
-				{
-					Emu.Pause();
-					state += cpu_flag::stop;
-					LOG_FATAL(SPU, "Access violation %s location 0x%x (%s, size=0x%x)",
-						args.cmd & MFC_PUT_CMD ? "writing" : "reading",
-						args.eal, args.cmd, args.size);
-
-					mfc_queue[mfc_size++] = args;
-					return true;
-				}
-
 				do_dma_transfer(args);
 			}
 
@@ -1383,11 +1416,14 @@ bool SPUThread::get_ch_value(u32 ch, u32& out)
 	{
 		for (int i = 0; i < 10 && channel.get_count() == 0; i++)
 		{
+			vm::temporary_unlock(*this);
 			busy_wait();
 		}
 
 		while (!channel.try_pop(out))
 		{
+			vm::temporary_unlock(*this);
+
 			if (test(state, cpu_flag::stop))
 			{
 				return false;
@@ -1412,6 +1448,7 @@ bool SPUThread::get_ch_value(u32 ch, u32& out)
 		{
 			for (int i = 0; i < 10 && ch_in_mbox.get_count() == 0; i++)
 			{
+				vm::temporary_unlock(*this);
 				busy_wait();
 			}
 
@@ -1424,6 +1461,8 @@ bool SPUThread::get_ch_value(u32 ch, u32& out)
 
 				return true;
 			}
+
+			vm::temporary_unlock(*this);
 
 			if (test(state & cpu_flag::stop))
 			{
@@ -1530,6 +1569,8 @@ bool SPUThread::get_ch_value(u32 ch, u32& out)
 
 		while (!(res = get_events(true)))
 		{
+			vm::temporary_unlock(*this);
+
 			if (test(state & cpu_flag::stop))
 			{
 				return false;
@@ -1572,6 +1613,8 @@ bool SPUThread::set_ch_value(u32 ch, u32 value)
 		{
 			while (!ch_out_intr_mbox.try_push(value))
 			{
+				vm::temporary_unlock(*this);
+
 				if (test(state & cpu_flag::stop))
 				{
 					return false;
@@ -1718,6 +1761,8 @@ bool SPUThread::set_ch_value(u32 ch, u32 value)
 	{
 		while (!ch_out_mbox.try_push(value))
 		{
+			vm::temporary_unlock(*this);
+
 			if (test(state & cpu_flag::stop))
 			{
 				return false;
@@ -1918,6 +1963,8 @@ bool SPUThread::stop_and_signal(u32 code)
 		// HACK: wait for executable code
 		while (!_ref<u32>(pc))
 		{
+			vm::temporary_unlock(*this);
+
 			if (test(state & cpu_flag::stop))
 			{
 				return false;
@@ -1931,6 +1978,7 @@ bool SPUThread::stop_and_signal(u32 code)
 
 	case 0x001:
 	{
+		vm::temporary_unlock(*this);
 		thread_ctrl::wait_for(1000); // hack
 		return true;
 	}
@@ -1944,6 +1992,8 @@ bool SPUThread::stop_and_signal(u32 code)
 	case 0x110:
 	{
 		/* ===== sys_spu_thread_receive_event ===== */
+
+		vm::temporary_unlock(*this);
 
 		u32 spuq;
 
@@ -2100,6 +2150,8 @@ bool SPUThread::stop_and_signal(u32 code)
 	{
 		/* ===== sys_spu_thread_group_exit ===== */
 
+		vm::temporary_unlock(*this);
+
 		u32 value;
 
 		if (!ch_out_mbox.try_pop(value))
@@ -2132,6 +2184,8 @@ bool SPUThread::stop_and_signal(u32 code)
 	case 0x102:
 	{
 		/* ===== sys_spu_thread_exit ===== */
+
+		vm::temporary_unlock(*this);
 
 		if (!ch_out_mbox.get_count())
 		{

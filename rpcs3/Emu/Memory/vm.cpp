@@ -109,7 +109,7 @@ namespace vm
 	{
 		if (g_tls_locked && g_tls_locked->compare_and_swap_test(&cpu, nullptr))
 		{
-			cpu.state.test_and_set(cpu_flag::memory);
+			cpu.cpu_unmem();
 		}
 	}
 
@@ -138,11 +138,6 @@ namespace vm
 			_register_lock(cpu);
 			cpu->state -= cpu_flag::memory;
 		}
-	}
-
-	reader_lock::reader_lock(const try_to_lock_t&)
-		: locked(g_mutex.try_lock_shared())
-	{
 	}
 
 	reader_lock::~reader_lock()
@@ -196,11 +191,6 @@ namespace vm
 		}
 	}
 
-	writer_lock::writer_lock(const try_to_lock_t&)
-		: locked(g_mutex.try_lock())
-	{
-	}
-
 	writer_lock::~writer_lock()
 	{
 		if (locked)
@@ -250,10 +240,10 @@ namespace vm
 		return g_pages[addr >> 12][addr].load(std::memory_order_acquire);
 	}
 
-	void reservation_update(u32 addr, u32 _size)
+	void reservation_update(u32 addr, u32 _size, bool lsb)
 	{
 		// Update reservation info with new timestamp (unsafe, assume allocated)
-		(*g_pages[addr >> 12].reservations)[(addr & 0xfff) >> 7].store(__rdtsc(), std::memory_order_release);
+		(*g_pages[addr >> 12].reservations)[(addr & 0xfff) >> 7].store((__rdtsc() & -2) | lsb, std::memory_order_release);
 	}
 
 	void waiter::init()
