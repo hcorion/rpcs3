@@ -569,7 +569,6 @@ public:
 
 	atomic_t<u32> run_ctrl; // SPU Run Control register (only provided to get latest data written)
 	atomic_t<u32> status; // SPU Status register
-	atomic_t<u32> npc; // SPU Next Program Counter register
 
 	std::array<spu_int_ctrl_t, 3> int_ctrl; // SPU Class 0, 1, 2 Interrupt Management
 
@@ -612,6 +611,11 @@ public:
 	void halt();
 
 	void fast_call(u32 ls_addr);
+
+	inline bool isRawSPU() const
+	{
+		return id < 0x02000000;
+	}
 
 	// Convert specified SPU LS address to a pointer of specified (possibly converted to BE) type
 	template<typename T>

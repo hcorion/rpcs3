@@ -305,7 +305,7 @@ void SPUThread::on_init(const std::shared_ptr<void>& _this)
 
 std::string SPUThread::get_name() const
 {
-	return fmt::format("%sSPU[0x%x] Thread (%s)", offset >= RAW_SPU_BASE_ADDR ? "Raw" : "", id, m_name);
+	return fmt::format("%sSPU[0x%x] Thread (%s)", isRawSPU() ? "Raw" : "", id, m_name);
 }
 
 std::string SPUThread::dump() const
@@ -384,7 +384,6 @@ void SPUThread::cpu_init()
 
 	run_ctrl = 0;
 	status = 0;
-	npc = 0;
 
 	int_ctrl[0].clear();
 	int_ctrl[1].clear();
@@ -1553,7 +1552,7 @@ bool SPUThread::set_ch_value(u32 ch, u32 value)
 
 	case SPU_WrOutIntrMbox:
 	{
-		if (offset >= RAW_SPU_BASE_ADDR)
+		if (isRawSPU())
 		{
 			while (!ch_out_intr_mbox.try_push(value))
 			{
@@ -1867,7 +1866,7 @@ bool SPUThread::stop_and_signal(u32 code)
 {
 	LOG_TRACE(SPU, "stop_and_signal(code=0x%x)", code);
 
-	if (offset >= RAW_SPU_BASE_ADDR)
+	if (isRawSPU())
 	{
 		status.atomic_op([code](u32& status)
 		{
@@ -2162,7 +2161,7 @@ void SPUThread::halt()
 {
 	LOG_TRACE(SPU, "halt()");
 
-	if (offset >= RAW_SPU_BASE_ADDR)
+	if (isRawSPU())
 	{
 		status.atomic_op([](u32& status)
 		{
