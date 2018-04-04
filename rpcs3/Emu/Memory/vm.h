@@ -100,10 +100,17 @@ namespace vm
 	};
 
 	// Get reservation status for further atomic update: last update timestamp
-	u64 reservation_acquire(u32 addr, u32 size);
+	u64 reservation_acquire(const u32 addr, u32 size);
+
+
+	// Get reservation status: last update timestamp (unsafe)
+	u64 get_reservation_info(const u32 addr);
 
 	// End atomic update
-	void reservation_update(u32 addr, u32 size, bool lsb = false);
+	void reservation_update(const u32 addr, u32 size, bool lsb = false);
+
+	// Checks if the reservation info exists
+	bool check_reservation(const u32 addr);
 
 	// Check and notify memory changes at address
 	void notify(u32 addr, u32 size);

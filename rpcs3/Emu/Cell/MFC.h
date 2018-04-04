@@ -34,6 +34,7 @@ enum : u32
 	MFC_PUTLLC_FAILURE = 1, // reservation was lost
 	MFC_PUTLLUC_SUCCESS = 2,
 	MFC_GETLLAR_SUCCESS = 4,
+	MFC_ATOMIC_EMPTY = 5, // Originally unused, value is set when the atomic channel data is empty.
 };
 
 // MFC Write Tag Status Update Request Channel (ch23) operations
@@ -60,22 +61,6 @@ enum : u32
 {
 	MFC_PPU_MAX_QUEUE_SPACE                 = 0x08,
 	MFC_SPU_MAX_QUEUE_SPACE                 = 0x10,
-};
-
-enum : u32
-{
-	MFC_DMA_TAG_STATUS_UPDATE_EVENT    = 0x00000001,
-	MFC_DMA_TAG_CMD_STALL_NOTIFY_EVENT = 0x00000002,
-	MFC_DMA_QUEUE_VACANCY_EVENT        = 0x00000008,
-	MFC_SPU_MAILBOX_WRITTEN_EVENT      = 0x00000010,
-	MFC_DECREMENTER_EVENT              = 0x00000020,
-	MFC_PU_INT_MAILBOX_AVAIL_EVENT     = 0x00000040,
-	MFC_PU_MAILBOX_AVAIL_EVENT         = 0x00000080,
-	MFC_SIGNAL_2_EVENT                 = 0x00000100,
-	MFC_SIGNAL_1_EVENT                 = 0x00000200,
-	MFC_LLR_LOST_EVENT                 = 0x00000400,
-	MFC_PRIV_ATTN_EVENT                = 0x00000800,
-	MFC_MULTISOURCE_SYNC_EVENT         = 0x00001000,
 };
 
 struct alignas(16) spu_mfc_cmd

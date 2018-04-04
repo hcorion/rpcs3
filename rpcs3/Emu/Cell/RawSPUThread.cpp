@@ -158,27 +158,17 @@ bool RawSPUThread::write_reg(const u32 addr, const u32 value)
 	{
 		g_tls_mfc[index].cmd = MFC(value & 0xff);
 
-		switch (value & 0xff)
+		switch (value & (0xff & ~(MFC_BARRIER_MASK | MFC_FENCE_MASK)))
 		{
 		case MFC_SNDSIG_CMD:
-		case MFC_SNDSIGB_CMD:
-		case MFC_SNDSIGF_CMD:
 		{
 			g_tls_mfc[index].size = 4;
 			// Fallthrough
 		}
 		case MFC_PUT_CMD:
-		case MFC_PUTB_CMD:
-		case MFC_PUTF_CMD:
 		case MFC_PUTS_CMD:
-		case MFC_PUTBS_CMD:
-		case MFC_PUTFS_CMD:
 		case MFC_GET_CMD:
-		case MFC_GETB_CMD:
-		case MFC_GETF_CMD:
 		case MFC_GETS_CMD:
-		case MFC_GETBS_CMD:
-		case MFC_GETFS_CMD:
 		{
 			if (g_tls_mfc[index].size)
 			{

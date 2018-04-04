@@ -2,7 +2,7 @@
 
 #include "../../../Utilities/BitField.h"
 
-union spu_opcode_t
+union spu_opcode
 {
 	u32 opcode;
 
@@ -24,6 +24,8 @@ union spu_opcode_t
 	bf_t<s32, 7, 16> si16; // 9..24, signed
 	bf_t<u32, 7, 18> i18; // 7..24
 };
+
+typedef const spu_opcode spu_opcode_t;
 
 inline u32 spu_branch_target(u32 pc, u32 imm = 0)
 {
