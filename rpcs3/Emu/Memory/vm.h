@@ -103,6 +103,10 @@ namespace vm
 	// Get reservation status for further atomic update: last update timestamp
 	u64 reservation_acquire(const u32 addr, u32 size);
 
+
+	// Get reservation status: last update timestamp (unsafe)
+	u64 get_reservation_info(const u32 addr);
+
 	// End atomic update
 	void reservation_update(const u32 addr, u32 size);
 

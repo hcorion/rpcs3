@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include "Memory.h"
 #include "Emu/System.h"
 #include "Utilities/mutex.h"
@@ -221,7 +221,7 @@ namespace vm
 		atomic_t<reservation_info*> reservations;
 
 		// Access reservation info
-		std::atomic<u64>& operator [](u32 addr)
+		u64 operator [](const u32 addr)
 		{
 			auto ptr = reservations.load();
 
@@ -237,7 +237,7 @@ namespace vm
 				}
 			}
 
-			return (*ptr)[(addr & 0xfff) >> 7];
+			return (*ptr)[(addr & 0xfff) >> 7].load(std::memory_order_acquire);
 		}
 	};
 
@@ -247,7 +247,7 @@ namespace vm
 	u64 reservation_acquire(const u32 addr, u32 _size)
 	{
 		// Access reservation info: stamp and the lock bit
-		return g_pages[addr >> 12][addr].load(std::memory_order_acquire);
+		return g_pages[addr >> 12][addr];
 	}
 
 	void reservation_update(const u32 addr, u32 _size)
@@ -255,6 +255,13 @@ namespace vm
 		// Update reservation info with new timestamp (unsafe, assume allocated)
 		(*g_pages[addr >> 12].reservations)[(addr & 0xfff) >> 7].store(__rdtsc(), std::memory_order_release);
 	}
+
+	u64 get_reservation_info(const u32 addr)
+	{
+		// Access reservation info: stamp and the lock bit (unsafe, assume allocated)
+		return (*g_pages[addr >> 12].reservations)[(addr & 0xfff) >> 7].load(std::memory_order_acquire);
+	}
+
 
 	bool check_reservation(const u32 addr)
 	{

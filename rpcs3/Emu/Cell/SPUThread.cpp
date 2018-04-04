@@ -1048,7 +1048,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 					_xabort(0);
 				}
 
-				if (rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
+				if (rtime == vm::get_reservation_info(raddr) && rdata == data)
 				{
 					data = to_write;
 					result = true;
@@ -1063,7 +1063,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 			{
 				vm::writer_lock lock;
 
-				if (rtime == vm::reservation_acquire(raddr, 128) && rdata == data)
+				if (rtime == vm::get_reservation_info(raddr) && rdata == data)
 				{
 					data = to_write;
 					result = true;
@@ -1237,7 +1237,7 @@ bool SPUThread::process_mfc_cmd(spu_mfc_cmd args)
 u32 SPUThread::get_events(bool waiting)
 {
 	// Check reservation status and set SPU_EVENT_LR if lost
-	if (raddr && (vm::reservation_acquire(raddr, sizeof(rdata)) != rtime || rdata != vm::_ref<decltype(rdata)>(raddr)))
+	if (raddr && (vm::get_reservation_info(raddr) != rtime || rdata != vm::_ref<decltype(rdata)>(raddr)))
 	{
 		ch_event_stat |= SPU_EVENT_LR;
 		raddr = 0;
