@@ -806,14 +806,6 @@ void SPUThread::do_putlluc(const spu_mfc_cmd& args)
 
 	if (args.eal == raddr)
 	{
-		ch_event_stat |= SPU_EVENT_LR;
-		raddr = 0;
-	}
-
-	const u32 addr = args.eal;
-
-	if (args.eal == raddr)
-	{
 		raddr = 0;
 		ch_event_stat |= SPU_EVENT_LR;
 	}
