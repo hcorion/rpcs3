@@ -1335,7 +1335,42 @@ void spu_recompiler::RDCH(spu_opcode_t op)
 	case SPU_RdInMbox:
 	{
 		// TODO
-		break;
+		Label wait = c->newLabel();
+		Label next = c->newLabel();
+		c->mov(SPU_OFF_32(pc), m_pos);
+		c->cmp(x86::byte_ptr(*cpu, offset32(&SPUThread::ch_in_mbox) + 1), 0);
+		c->jz(wait);
+
+		after.emplace_back([=]
+		{
+			// Do not continue after waiting
+			c->bind(wait);
+			c->mov(*ls, op.ra);
+			c->lea(*qw0, SPU_OFF_128(gpr, op.rt));
+			c->jmp(imm_ptr<void(*)(SPUThread*, u32, v128*)>(gate));
+		});
+
+		auto sub = [](SPUThread* _spu, v128* out, spu_function_t _ret)
+		{
+			// Workaround for gcc (TCO)
+			static thread_local u32 value;
+
+			if (!_spu->get_ch_value(SPU_RdInMbox, value))
+			{
+				// Workaround for MSVC (TCO)
+				fmt::raw_error("spu_recompiler::RDCH(): unexpected SPUThread::get_ch_value(SPU_RdInMbox) call");
+			}
+
+			*out = v128::from32r(value);
+			_ret(*_spu, _spu->_ptr<u8>(0), nullptr);
+		};
+
+		c->lea(*ls, SPU_OFF_128(gpr, op.rt));
+		c->lea(*qw0, x86::qword_ptr(next));
+		c->jmp(imm_ptr<void(*)(SPUThread*, v128*, spu_function_t)>(sub));
+		c->align(kAlignCode, 16);
+		c->bind(next);
+		return;
 	}
 	case MFC_RdTagStat:
 	{
