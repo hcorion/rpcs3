@@ -77,7 +77,7 @@ namespace vk
 		if (mag > 0.f) mag = sqrtf(mag);
 		mag *= 0.3333f;
 
-		if (mag > 0.8f && color4.a > 0.f)
+		if (mag > 0.8f)
 		{
 			//If color elements are brighter than roughly 0.5 average, use white border
 			return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
