@@ -1065,11 +1065,14 @@ void spu_recompiler::fall(spu_opcode_t op)
 {
 	auto gate = [](SPUThread* _spu, u32 opcode, spu_inter_func_t _func, spu_function_t _ret)
 	{
-		if (LIKELY(_func(*_spu, {opcode})))
+		if (!_func(*_spu, {opcode}))
 		{
-			// Restore arguments and return to the next instruction
-			_ret(*_spu, _spu->_ptr<u8>(0), nullptr);
+			// Workaround for MSVC (TCO)
+			fmt::raw_error("spu_recompiler::fall(): unexpected interpreter call");
 		}
+
+		// Restore arguments and return to the next instruction
+		_ret(*_spu, _spu->_ptr<u8>(0), nullptr);
 	};
 
 	asmjit::Label next = c->newLabel();
