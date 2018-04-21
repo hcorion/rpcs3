@@ -5,9 +5,16 @@
 #include "Emu/Cell/SPUInterpreter.h"
 #include "MFC.h"
 
+#include <map>
+
 struct lv2_event_queue;
 struct lv2_spu_group;
 struct lv2_int_tag;
+
+class SPUThread;
+
+// JIT Block
+using spu_function_t = void(*)(SPUThread&, void*, u8*);
 
 // SPU Channels
 enum : u32
@@ -146,119 +153,115 @@ enum : u32
 	RAW_SPU_PROB_OFFSET = 0x00040000,
 };
 
-struct spu_channel_t
+struct spu_channel
 {
-	struct alignas(8) sync_var_t
-	{
-		bool count; // value available
-		bool wait; // notification required
-		u32 value;
-	};
-
-	atomic_t<sync_var_t> data;
+	// Low 32 bits contain value
+	atomic_t<u64> data;
 
 public:
-	// returns true on success
+	static const u32 off_wait = 32;
+	static const u32 off_count = 63;
+	static const u64 bit_wait = 1ull << off_wait;
+	static const u64 bit_count = 1ull << off_count;
+
+	// Returns true on success
 	bool try_push(u32 value)
 	{
-		const auto old = data.fetch_op([=](sync_var_t& data)
+		const u64 old = data.fetch_op([=](u64& data)
 		{
-			if ((data.wait = data.count) == false)
+			if (UNLIKELY(data & bit_count))
 			{
-				data.count = true;
-				data.value = value;
+				data |= bit_wait;
+			}
+			else
+			{
+				data = bit_count | value;
 			}
 		});
 
-		return !old.count;
+		return !(old & bit_count);
 	}
 
-	// push performing bitwise OR with previous value, may require notification
+	// Push performing bitwise OR with previous value, may require notification
 	void push_or(cpu_thread& spu, u32 value)
 	{
-		const auto old = data.fetch_op([=](sync_var_t& data)
+		const u64 old = data.fetch_op([=](u64& data)
 		{
-			data.count = true;
-			data.wait = false;
-			data.value |= value;
+			data &= ~bit_wait;
+			data |= bit_count | value;
 		});
 
-		if (old.wait) spu.notify();
+		if (old & bit_wait)
+		{
+			spu.notify();
+		}
 	}
 
 	bool push_and(u32 value)
 	{
-		const auto old = data.fetch_op([=](sync_var_t& data)
-		{
-			data.value &= ~value;
-		});
-
-		return (old.value & value) != 0;
+		return (data.fetch_and(~u64{value}) & value) != 0;
 	}
 
-	// push unconditionally (overwriting previous value), may require notification
+	// Push unconditionally (overwriting previous value), may require notification
 	void push(cpu_thread& spu, u32 value)
 	{
-		const auto old = data.fetch_op([=](sync_var_t& data)
+		if (data.exchange(bit_count | value) & bit_wait)
 		{
-			data.count = true;
-			data.wait = false;
-			data.value = value;
-		});
-
-		if (old.wait) spu.notify();
+			spu.notify();
+		}
 	}
 
-	// returns true on success
+	// Returns true on success
 	bool try_pop(u32& out)
 	{
-		const auto old = data.fetch_op([&](sync_var_t& data)
+		const u64 old = data.fetch_op([&](u64& data)
 		{
-			if (data.count)
+			if (LIKELY(data & bit_count))
 			{
-				data.wait = false;
-				out = data.value;
+				out = static_cast<u32>(data);
+				data = 0;
 			}
 			else
 			{
-				data.wait = true;
+				data |= bit_wait;
 			}
-
-			data.count = false;
-			data.value = 0; // ???
 		});
 
-		return old.count;
+		return (old & bit_count) != 0;
 	}
 
-	// pop unconditionally (loading last value), may require notification
+	// Pop unconditionally (loading last value), may require notification
 	u32 pop(cpu_thread& spu)
 	{
-		const auto old = data.fetch_op([](sync_var_t& data)
+		// Value is not cleared and may be read again
+		const u64 old = data.fetch_and(~(bit_count | bit_wait));
+
+		if (old & bit_wait)
 		{
-			data.wait = false;
-			data.count = false;
-			// value is not cleared and may be read again
-		});
+			spu.notify();
+		}
 
-		if (old.wait) spu.notify();
-
-		return old.value;
+		return static_cast<u32>(old);
 	}
 
 	void set_value(u32 value, bool count = true)
 	{
-		data.store({ count, false, value });
+		const u64 new_data = u64{count} << off_count | value;
+#ifdef _MSC_VER
+		const_cast<volatile u64&>(data.raw()) = new_data;
+#else
+		__atomic_store_n(&data.raw(), new_data, __ATOMIC_RELAXED);
+#endif
 	}
 
 	u32 get_value()
 	{
-		return data.load().value;
+		return static_cast<u32>(data);
 	}
 
 	u32 get_count()
 	{
-		return data.load().count;
+		return static_cast<u32>(data >> off_count);
 	}
 };
 
@@ -514,15 +517,13 @@ public:
 	virtual ~SPUThread() override;
 	void cpu_init();
 
-protected:
-	SPUThread(const std::string& name);
-
-public:
 	static const u32 id_base = 0x02000000; // TODO (used to determine thread type)
 	static const u32 id_step = 1;
 	static const u32 id_count = 2048;
 
 	SPUThread(const std::string& name, u32 index, lv2_spu_group* group);
+
+	u32 pc = 0;
 
 	// General-Purpose Registers
 	std::array<v128, 128> gpr;
@@ -546,20 +547,20 @@ public:
 	u32 srr0;
 	u32 ch_tag_upd;
 	u32 ch_tag_mask;
-	spu_channel_t ch_tag_stat;
+	spu_channel ch_tag_stat;
 	u32 ch_stall_mask;
-	spu_channel_t ch_stall_stat;
-	spu_channel_t ch_atomic_stat;
+	spu_channel ch_stall_stat;
+	spu_channel ch_atomic_stat;
 
 	spu_channel_4_t ch_in_mbox;
 
-	spu_channel_t ch_out_mbox;
-	spu_channel_t ch_out_intr_mbox;
+	spu_channel ch_out_mbox;
+	spu_channel ch_out_intr_mbox;
 
 	u64 snr_config; // SPU SNR Config Register
 
-	spu_channel_t ch_snr1; // SPU Signal Notification Register 1
-	spu_channel_t ch_snr2; // SPU Signal Notification Register 2
+	spu_channel ch_snr1; // SPU Signal Notification Register 1
+	spu_channel ch_snr2; // SPU Signal Notification Register 2
 
 	atomic_t<u32> ch_event_mask;
 	atomic_t<u32> ch_event_stat;
@@ -577,23 +578,23 @@ public:
 	std::array<std::pair<u32, std::weak_ptr<lv2_event_queue>>, 32> spuq; // Event Queue Keys for SPU Thread
 	std::weak_ptr<lv2_event_queue> spup[64]; // SPU Ports
 
-	u32 pc = 0; //
 	const u32 index; // SPU index
 	const u32 offset; // SPU LS offset
 	lv2_spu_group* const group; // SPU Thread Group
 
 	const std::string m_name; // Thread name
 
-	std::exception_ptr pending_exception;
-
-	std::array<struct spu_function_t*, 65536> compiled_cache{};
-	std::shared_ptr<class SPUDatabase> spu_db;
-	std::shared_ptr<class spu_recompiler_base> spu_rec;
-	u32 recursion_level = 0;
-
 	u64 tx_success = 0;
 	u64 tx_failure = 0;
 	uint tx_status = 0;
+
+	std::unique_ptr<class spu_recompiler_base> jit; // Recompiler instance
+
+	u64 block_counter = 0;
+	u64 block_recover = 0;
+	u64 block_failure = 0;
+
+	std::array<spu_function_t, 0x10000> jit_dispatcher; // Dispatch table for indirect calls
 
 	void push_snr(u32 number, u32 value);
 	void do_dma_transfer(const spu_mfc_cmd& args);
