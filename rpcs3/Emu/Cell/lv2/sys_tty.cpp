@@ -9,9 +9,10 @@ extern atomic_t<s64> g_tty_size;
 error_code sys_tty_read(s32 ch, vm::ptr<char> buf, u32 len, vm::ptr<u32> preadlen)
 {
 	sys_tty.fatal("sys_tty_read(ch=%d, buf=*0x%x, len=%d, preadlen=*0x%x)", ch, buf, len, preadlen);
-
+	*preadlen = 0;
 	// We currently do not support reading from the Console
-	fmt::throw_exception("Unimplemented" HERE);
+	//fmt::throw_exception("Unimplemented" HERE);
+	return CELL_OK;
 }
 
 error_code sys_tty_write(s32 ch, vm::cptr<char> buf, u32 len, vm::ptr<u32> pwritelen)
