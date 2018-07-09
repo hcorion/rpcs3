@@ -139,6 +139,8 @@ u8 cellMicIsOpen(u32 deviceNumber)
 {
 	cellMic.warning("cellMicIsOpen(deviceNumber=%d)", deviceNumber);
 	const auto micThread = fxm::get<mic_thread>();
+	if (!micThread)
+		return CELL_MIC_ERROR_NOT_INIT;
 	return micThread->micOpened;
 }
 
@@ -266,6 +268,8 @@ s32 cellMicGetFormatRaw(u32 deviceNumber, vm::ptr<CellMicInputFormat> format)
 {
 	cellMic.warning("cellMicGetFormatRaw(deviceNumber=%d, format=0x%x)", deviceNumber, format);
 	const auto micThread = fxm::get<mic_thread>();
+	if (!micThread)
+		return CELL_MIC_ERROR_NOT_INIT;
 	format->channelNum = 4;
 	format->subframeSize = 2;
 	format->bitResolution = micThread->bitResolution;
@@ -278,6 +282,8 @@ s32 cellMicGetFormatAux(u32 deviceNumber, vm::ptr<CellMicInputFormat> format)
 {
 	cellMic.warning("cellMicGetFormatAux(deviceNumber=%d, format=0x%x)", deviceNumber, format);
 	const auto micThread = fxm::get<mic_thread>();
+	if (!micThread)
+		return CELL_MIC_ERROR_NOT_INIT;
 	format->channelNum = 4;
 	format->subframeSize = 2;
 	format->bitResolution = micThread->bitResolution;
@@ -290,6 +296,8 @@ s32 cellMicGetFormatDsp(u32 deviceNumber, vm::ptr<CellMicInputFormat> format)
 {
 	cellMic.warning("cellMicGetFormatDsp(deviceNumber=%d, format=0x%x)", deviceNumber, format);
 	const auto micThread = fxm::get<mic_thread>();
+	if (!micThread)
+		return CELL_MIC_ERROR_NOT_INIT;
 	format->channelNum = 4;
 	format->subframeSize = 2;
 	format->bitResolution = micThread->bitResolution;
@@ -349,11 +357,7 @@ s32 cellMicRead(u32 deviceNumber, vm::ptr<void> data, u32 maxBytes)
 	if (!micThread)
 		return CELL_MIC_ERROR_NOT_INIT;
 
-	int size = 0;
-	if (micThread->bufferSize > maxBytes)
-		size = maxBytes;
-	else
-		size = micThread->bufferSize;
+	const s32 size = std::min<s32>(maxBytes, micThread->bufferSize);
 	std::memcpy(data.get_ptr(), micThread->buffer, size);
 	return size;
 }
@@ -365,15 +369,7 @@ s32 cellMicReadRaw(u32 deviceNumber, vm::ptr<void> data, int maxBytes)
 	if (!micThread)
 		return CELL_MIC_ERROR_NOT_INIT;
 
-	int size = 0;
-	if (micThread->bufferSize > maxBytes)
-	{
-		size = maxBytes;
-	}
-	else
-	{
-		size = micThread->bufferSize;
-	}
+	const s32 size = std::min<s32>(maxBytes, micThread->bufferSize);
 	std::memcpy(data.get_ptr(), micThread->buffer, size);
 	return size;
 }
