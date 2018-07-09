@@ -47,7 +47,7 @@ void mic_thread::on_task()
 			std::this_thread::sleep_for(10ms);
 		}
 		ALuint frameSize = 2 * bitResolution / 8;
-		auto result = realloc(buffer, frameSize * count);
+		auto result      = realloc(buffer, frameSize * count);
 		if (result != nullptr)
 		{
 			buffer = (ALbyte*)result;
@@ -99,7 +99,7 @@ s32 cellMicOpen(u32 deviceNumber, u32 sampleRate)
 		return CELL_MIC_ERROR_ALREADY_OPEN;
 
 	micThread->DspFrequency = sampleRate;
-	micThread->micOpened = true;
+	micThread->micOpened    = true;
 	return CELL_OK;
 }
 
@@ -114,14 +114,14 @@ s32 cellMicOpenRaw(u32 deviceNumber, u32 sampleRate, u32 maxChannels)
 		return CELL_MIC_ERROR_ALREADY_OPEN;
 
 	micThread->rawFrequency = sampleRate;
-	micThread->micOpened = true;
+	micThread->micOpened    = true;
 	return CELL_OK;
 }
 
 s32 cellMicOpenEx(u32 deviceNumber, u32 rawSampleRate, u32 rawChannel, u32 DSPSampleRate, u32 bufferSizeMS, u8 signalType)
 {
-	cellMic.todo("cellMicOpenEx(deviceNumber=%d, rawSampleRate=%d, rawChannel=%d, DSPSampleRate=%d, bufferSizeMS=%d, signalType=0x%x)",
-				 deviceNumber, rawSampleRate, rawChannel, DSPSampleRate, bufferSizeMS, signalType);
+	cellMic.todo("cellMicOpenEx(deviceNumber=%d, rawSampleRate=%d, rawChannel=%d, DSPSampleRate=%d, bufferSizeMS=%d, signalType=0x%x)", deviceNumber, rawSampleRate, rawChannel, DSPSampleRate,
+	    bufferSizeMS, signalType);
 	const auto micThread = fxm::get<mic_thread>();
 	if (!micThread)
 		return CELL_MIC_ERROR_NOT_INIT;
@@ -131,7 +131,7 @@ s32 cellMicOpenEx(u32 deviceNumber, u32 rawSampleRate, u32 rawChannel, u32 DSPSa
 
 	micThread->rawFrequency = rawSampleRate;
 	micThread->DspFrequency = DSPSampleRate;
-	micThread->micOpened = true;
+	micThread->micOpened    = true;
 	return CELL_OK;
 }
 
@@ -233,33 +233,33 @@ s32 cellMicSetSignalAttr()
 
 s32 cellMicGetSignalState(u32 deviceNumber, CellMicSignalState signalState, vm::ptr<void> value)
 {
-	cellMic.todo("cellMicGetSignalState(deviceNumber=%d, signalSate=%d, value=0x%x)", deviceNumber, (int) signalState, value);
+	cellMic.todo("cellMicGetSignalState(deviceNumber=%d, signalSate=%d, value=0x%x)", deviceNumber, (int)signalState, value);
 	const auto micThread = fxm::get<mic_thread>();
 	if (!micThread)
 		return CELL_MIC_ERROR_NOT_INIT;
 
-	be_t<u32> *ival = (be_t<u32> *) value.get_ptr();
-	be_t<f32> *fval = (be_t<f32> *) value.get_ptr();
+	be_t<u32>* ival = (be_t<u32>*)value.get_ptr();
+	be_t<f32>* fval = (be_t<f32>*)value.get_ptr();
 	switch (signalState)
 	{
-		case CELL_MIC_SIGSTATE_LOCTALK:
-			*ival = 9; // Someone is probably talking
-			break;
-		case CELL_MIC_SIGSTATE_FARTALK:
-			// TODO
-			break;
-		case CELL_MIC_SIGSTATE_NSR:
-			// TODO
-			break;
-		case CELL_MIC_SIGSTATE_AGC:
-			// TODO
-			break;
-		case CELL_MIC_SIGSTATE_MICENG:
-			*fval = 40.0f; // 40 decibels
-			break;
-		case CELL_MIC_SIGSTATE_SPKENG:
-			// TODO
-			break;
+	case CELL_MIC_SIGSTATE_LOCTALK:
+		*ival = 9; // Someone is probably talking
+		break;
+	case CELL_MIC_SIGSTATE_FARTALK:
+		// TODO
+		break;
+	case CELL_MIC_SIGSTATE_NSR:
+		// TODO
+		break;
+	case CELL_MIC_SIGSTATE_AGC:
+		// TODO
+		break;
+	case CELL_MIC_SIGSTATE_MICENG:
+		*fval = 40.0f; // 40 decibels
+		break;
+	case CELL_MIC_SIGSTATE_SPKENG:
+		// TODO
+		break;
 	}
 	return CELL_OK;
 }
@@ -270,11 +270,11 @@ s32 cellMicGetFormatRaw(u32 deviceNumber, vm::ptr<CellMicInputFormat> format)
 	const auto micThread = fxm::get<mic_thread>();
 	if (!micThread)
 		return CELL_MIC_ERROR_NOT_INIT;
-	format->channelNum = 4;
-	format->subframeSize = 2;
+	format->channelNum    = 4;
+	format->subframeSize  = 2;
 	format->bitResolution = micThread->bitResolution;
-	format->dataType = 1;
-	format->sampleRate = micThread->rawFrequency;
+	format->dataType      = 1;
+	format->sampleRate    = micThread->rawFrequency;
 	return CELL_OK;
 }
 
@@ -284,11 +284,11 @@ s32 cellMicGetFormatAux(u32 deviceNumber, vm::ptr<CellMicInputFormat> format)
 	const auto micThread = fxm::get<mic_thread>();
 	if (!micThread)
 		return CELL_MIC_ERROR_NOT_INIT;
-	format->channelNum = 4;
-	format->subframeSize = 2;
+	format->channelNum    = 4;
+	format->subframeSize  = 2;
 	format->bitResolution = micThread->bitResolution;
-	format->dataType = 1;
-	format->sampleRate = micThread->AuxFrequency;
+	format->dataType      = 1;
+	format->sampleRate    = micThread->AuxFrequency;
 	return CELL_OK;
 }
 
@@ -298,11 +298,11 @@ s32 cellMicGetFormatDsp(u32 deviceNumber, vm::ptr<CellMicInputFormat> format)
 	const auto micThread = fxm::get<mic_thread>();
 	if (!micThread)
 		return CELL_MIC_ERROR_NOT_INIT;
-	format->channelNum = 4;
-	format->subframeSize = 2;
+	format->channelNum    = 4;
+	format->subframeSize  = 2;
 	format->bitResolution = micThread->bitResolution;
-	format->dataType = 1;
-	format->sampleRate = micThread->DspFrequency;
+	format->dataType      = 1;
+	format->sampleRate    = micThread->DspFrequency;
 	return CELL_OK;
 }
 
@@ -483,8 +483,8 @@ s32 cellMicGetDeviceIdentifier()
 	return CELL_OK;
 }
 
-DECLARE(ppu_module_manager::cellMic)("cellMic", []()
-{
+DECLARE(ppu_module_manager::cellMic)
+("cellMic", []() {
 	REG_FUNC(cellMic, cellMicInit);
 	REG_FUNC(cellMic, cellMicEnd);
 	REG_FUNC(cellMic, cellMicOpen);
