@@ -7,10 +7,6 @@
 #include <Emu/Cell/lv2/sys_event.h>
 #include <thread>
 
-#include "3rdparty/OpenAL/include/al.h"
-#include "3rdparty/OpenAL/include/alc.h"
-#include "3rdparty/OpenAL/include/alext.h"
-
 logs::channel cellMic("cellMic");
 
 void mic_thread::on_init(const std::shared_ptr<void>& _this)
@@ -24,42 +20,25 @@ void mic_thread::on_task()
 	{
 		if (Emu.IsPaused())
 		{
-			std::this_thread::sleep_for(1ms); // hack
+			std::this_thread::sleep_for(1ms); // hack from cellAudio
 			continue;
 		}
 		if (!micOpened || !micStarted)
 			continue;
 
-		if (inputDevice == nullptr)
-		{
-			inputDevice = alcCaptureOpenDevice(NULL, DspFrequency, AL_FORMAT_STEREO_FLOAT32, rawFrequency / 2);
-			alcCaptureStart(inputDevice);
-		}
-
 		// If event queue is not set, then we can't send any events
 		if (eventQueueKey == 0)
 			continue;
 
-		int count = 0;
-		while (count < 1)
+		std::this_thread::sleep_for(1s);
+		auto micQueue = lv2_event_queue::find(eventQueueKey);
+
+		// This can happen with a race condition between the mic thread and cellMicClose/Stop
+		if (micQueue == nullptr)
 		{
-			alcGetIntegerv(inputDevice, ALC_CAPTURE_SAMPLES, 1, &count);
-			std::this_thread::sleep_for(10ms);
-		}
-		ALuint frameSize = 2 * bitResolution / 8;
-		auto result      = realloc(buffer, frameSize * count);
-		if (result != nullptr)
-		{
-			buffer = (ALbyte*)result;
-		}
-		else
-		{
-			cellMic.error("Error (re)allocating memory in cellMic thread.");
+			cellMic.error("couldn't get the micQueue for event queue key %u", eventQueueKey);
 			continue;
 		}
-		bufferSize = count;
-		alcCaptureSamples(inputDevice, buffer, count);
-		auto micQueue = lv2_event_queue::find(eventQueueKey);
 		micQueue->send(0, CELL_MIC_DATA, 0, 0);
 	}
 }
@@ -140,7 +119,7 @@ u8 cellMicIsOpen(u32 deviceNumber)
 	cellMic.warning("cellMicIsOpen(deviceNumber=%d)", deviceNumber);
 	const auto micThread = fxm::get<mic_thread>();
 	if (!micThread)
-		return CELL_MIC_ERROR_NOT_INIT;
+		return false;
 	return micThread->micOpened;
 }
 
@@ -357,8 +336,7 @@ s32 cellMicRead(u32 deviceNumber, vm::ptr<void> data, u32 maxBytes)
 	if (!micThread)
 		return CELL_MIC_ERROR_NOT_INIT;
 
-	const s32 size = std::min<s32>(maxBytes, micThread->bufferSize);
-	std::memcpy(data.get_ptr(), micThread->buffer, size);
+	const s32 size = std::min<s32>(maxBytes, bufferSize);
 	return size;
 }
 
@@ -369,8 +347,7 @@ s32 cellMicReadRaw(u32 deviceNumber, vm::ptr<void> data, int maxBytes)
 	if (!micThread)
 		return CELL_MIC_ERROR_NOT_INIT;
 
-	const s32 size = std::min<s32>(maxBytes, micThread->bufferSize);
-	std::memcpy(data.get_ptr(), micThread->buffer, size);
+	const s32 size = std::min<s32>(maxBytes, bufferSize);
 	return size;
 }
 

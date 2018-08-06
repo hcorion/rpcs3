@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Utilities/Thread.h"
-#include "3rdparty/OpenAL/include/al.h"
-#include "3rdparty/OpenAL/include/alc.h"
 
 // Error Codes
 enum
@@ -51,12 +49,14 @@ enum CellMicCommand
 	CELL_MIC_DATA = 5,
 };
 
+// TODO: generate this from input from an actual microphone
+const u32 bufferSize = 1;
+
 class mic_thread final : public named_thread
 {
 private:
 	void on_task() override;
 	std::string get_name() const override { return "Mic Thread"; }
-	ALCdevice* inputDevice;
 public:
 	void on_init(const std::shared_ptr<void>&) override;
 	// Default value of 48000 for no particular reason
@@ -68,10 +68,6 @@ public:
 	bool micStarted = false;
 	u64 eventQueueKey = 0;
 
-	// OpenAL stuff
-	ALbyte *buffer;
-	int bufferSize;
-
 	u32 signalStateLocalTalk = 9; // value is in range 0-10. 10 indicates talking, 0 indicating none.
 	u32 signalStateFarTalk = 0; // value is in range 0-10. 10 indicates talking from far away, 0 indicating none.
 	f32 signalStateNoiseSupression; // value is in decibels
@@ -79,10 +75,4 @@ public:
 	f32 signalStateMicSignalLevel; // value is in decibels
 	f32 signalStateSpeakerSignalLevel; // value is in decibels
 	mic_thread() = default;
-	~mic_thread()
-	{
-		alcCaptureStop(inputDevice);
-		alcCaptureCloseDevice(inputDevice);
-		inputDevice = nullptr;
-	}
 };
