@@ -33,7 +33,13 @@ if [ "$DEPLOY_APPIMAGE" = "true" ]; then
 	ls
 	COMM_TAG="$(git describe --tags $(git rev-list --tags --max-count=1))"
 	COMM_COUNT="$(git rev-list --count HEAD)"
-	echo $(curl "${UPLOAD_URL}${TRAVIS_COMMIT:0:8}&t=${COMM_TAG}&a=${COMM_COUNT}" --upload-file ./RPCS3*.AppImage)
+	curl -sL https://github.com/probonopd/uploadtool/raw/master/upload.sh
+	# TODO: Set RELEASE_NAME RELEASE_TITLE REPO_COMMIT
+	
+	mv ./RPCS3*.AppImage rpcs3-${COMM_TAG}-${COMM_COUNT}-${TRAVIS_COMMIT:0:8}.AppImage
+	#echo $(curl "${UPLOAD_URL}${TRAVIS_COMMIT:0:8}&t=${COMM_TAG}&a=${COMM_COUNT}" --upload-file ./RPCS3*.AppImage)
+	unset TRAVIS_REPO_SLUG
+	env REPO_SLUG=hcorion/rpcs3-linux-builds RELEASE_NAME=build-${TRAVIS_COMMIT} RELEASE_TITLE=${COMM_TAG}-${TRAVIS_COMMIT:0:8} REPO_COMMIT=6a42c17d487c392a9e5ae63cd79c7b00c5479f45 bash upload.sh
 fi
 if [ "$DEPLOY_PPA" = "true" ]; then
 	export DEBFULLNAME="RPCS3 Build Bot"
