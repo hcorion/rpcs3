@@ -272,6 +272,13 @@ target_include_directories(3rdparty_openal INTERFACE ${OPENAL_INCLUDE_DIR})
 target_link_libraries(3rdparty_openal INTERFACE ${OPENAL_LIBRARY})
 
 
+add_library(3rdpary_libusb INTERFACE)
+if (NOT MSVC)
+	find_package(libusb-1.0 REQUIRED)
+else()
+target_include_directories(3rdparty_libusb INTERFACE ${LIBUSB_INCLUDE_DIR})
+target_link_libraries(3rdparty_libusb INTERFACE ${LIBUSB_LIBRARY})
+
 # FFMPEG
 add_library(3rdparty_ffmpeg INTERFACE)
 
@@ -361,3 +368,4 @@ add_library(3rdparty::openal ALIAS 3rdparty_openal)
 add_library(3rdparty::ffmpeg ALIAS 3rdparty_ffmpeg)
 add_library(3rdparty::dx12 ALIAS 3rdparty_dx12)
 add_library(3rdparty::glew ALIAS 3rdparty_glew)
+add_library(3rdparty::libusb ALIAS 3rdparty_libusb)
