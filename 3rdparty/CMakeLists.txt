@@ -334,6 +334,7 @@ add_library(3rdparty_glew INTERFACE)
 if(NOT MSVC)
 	find_package(GLEW 1.13.0 REQUIRED)
 	target_link_libraries(3rdparty_glew INTERFACE GLEW::GLEW)
+	target_include_directories(3rdparty_glew INTERFACE ${GLEW_INCLUDE_DIRS})
 endif()
 
 
