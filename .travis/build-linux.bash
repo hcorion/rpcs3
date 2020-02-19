@@ -21,14 +21,19 @@ if [ $COMPILER = "gcc" ]; then
 	# These are set in the dockerfile
 	export CC=${GCC_BINARY}
 	export CXX=${GXX_BINARY}
+	export LINKER=gold
 else
 	export CC=${CLANG_BINARY}
 	export CXX=${CLANGXX_BINARY}
+	export LINKER=lld
 fi
 
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_LLVM_SUBMODULE=OFF -DLLVM_DIR=llvmlibs/lib/cmake/llvm/ -DUSE_NATIVE_INSTRUCTIONS=OFF -G Ninja
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_LLVM_SUBMODULE=OFF -DLLVM_DIR=llvmlibs/lib/cmake/llvm/ -DUSE_NATIVE_INSTRUCTIONS=OFF -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections -flto -fuse-linker-plugin -fuse-ld=${LINKER}" -DCMAKE_C_FLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections -flto -fuse-linker-plugin -fuse-ld=${LINKER}" -G Ninja
 
 ninja; build_status=$?;
+
+DESTDIR=appdir ninja install
+ls -lh ./appdir/usr/bin/rpcs3
 
 cd ..
 # If it compiled succesfully let's deploy
