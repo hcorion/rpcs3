@@ -6,7 +6,7 @@ if [ "$DEPLOY_APPIMAGE" = "true" ]; then
 	curl -sLO "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
 	chmod a+x linuxdeployqt*.AppImage
 	./linuxdeployqt*.AppImage --appimage-extract
-	./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -bundle-non-qt-libs
+	./squashfs-root/AppRun ./appdir/usr/share/applications/*.desktop -bundle-non-qt-libs -extra-plugins=bearer
 	ls ./appdir/usr/lib/
 	rm -r ./appdir/usr/share/doc
 	rm ./appdir/usr/lib/libxcb*
@@ -31,6 +31,7 @@ if [ "$DEPLOY_APPIMAGE" = "true" ]; then
 	
 	# Package it up and send it off
 	./squashfs-root/usr/bin/appimagetool /rpcs3/build/appdir
+	printf "\n$(curl --upload-file ./RPCS3*.AppImage https://transfer.sh/blarg)\n"
 	ls
 	COMM_TAG="$(grep 'version{.*}' ../rpcs3/rpcs3_version.cpp | awk -F[{,] '{printf "%d.%d.%d", $2, $3, $4}')"
 	COMM_COUNT="$(git rev-list --count HEAD)"

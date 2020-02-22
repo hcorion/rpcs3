@@ -32,4 +32,4 @@ ninja; build_status=$?;
 
 cd ..
 # If it compiled succesfully let's deploy
-if [ $build_status -eq 0 ] && [ -n "$GITHUB_TOKEN" ] && [ "$TRAVIS_BRANCH" = "master" ] && [ "$TRAVIS_PULL_REQUEST" = false ]; then /bin/bash -ex .travis/deploy-linux.bash ; fi
+if [ $build_status -eq 0 ] && [ "$TRAVIS_PULL_REQUEST" = false ]; then /bin/bash -ex .travis/deploy-linux.bash ; fi
