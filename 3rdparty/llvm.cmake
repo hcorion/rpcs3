@@ -21,13 +21,13 @@ if(WITH_LLVM)
 		endif()
 
 		# LLVM needs to be built out-of-tree
-		add_subdirectory(${CMAKE_SOURCE_DIR}/llvm ${CMAKE_CURRENT_BINARY_DIR}/llvm_build EXCLUDE_FROM_ALL)
+		add_subdirectory(${CMAKE_SOURCE_DIR}/llvm/llvm ${CMAKE_CURRENT_BINARY_DIR}/llvm_build EXCLUDE_FROM_ALL)
 		set(LLVM_DIR "${CMAKE_CURRENT_BINARY_DIR}/llvm_build/lib/cmake/llvm/")
 
 		set(CMAKE_CXX_FLAGS ${CXX_FLAGS_OLD})
 
 		# now tries to find LLVM again
-		find_package(LLVM 11.0 CONFIG)
+		find_package(LLVM 10.0 CONFIG)
 		if(NOT LLVM_FOUND)
 			message(FATAL_ERROR "Couldn't build LLVM from the submodule. You might need to run `git submodule update --init`")
 		endif()
@@ -40,10 +40,10 @@ if(WITH_LLVM)
 			set(LLVM_DIR ${CMAKE_SOURCE_DIR}/${LLVM_DIR})
 		endif()
 
-		find_package(LLVM 11.0 CONFIG)
+		find_package(LLVM 10.0 CONFIG)
 
 		if (NOT LLVM_FOUND)
-			if (LLVM_VERSION AND LLVM_VERSION_MAJOR LESS 11)
+			if (LLVM_VERSION AND LLVM_VERSION_MAJOR LESS 10)
 				message(FATAL_ERROR "Found LLVM version ${LLVM_VERSION}. Required version 11.0. \
 														 Enable BUILD_LLVM_SUBMODULE option to build LLVM from included as a git submodule.")
 			endif()
