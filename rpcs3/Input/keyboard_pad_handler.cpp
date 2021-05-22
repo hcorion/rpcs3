@@ -441,12 +441,13 @@ void keyboard_pad_handler::mouseMoveEvent(QMouseEvent* event)
 	{
 		static int last_pos_x = 0;
 		static int last_pos_y = 0;
+		const QPoint e_pos = event->pos();
 
-		movement_x = event->x() - last_pos_x;
-		movement_y = event->y() - last_pos_y;
+		movement_x = e_pos.x() - last_pos_x;
+		movement_y = e_pos.y() - last_pos_y;
 
-		last_pos_x = event->x();
-		last_pos_y = event->y();
+		last_pos_x = e_pos.x();
+		last_pos_y = e_pos.y();
 	}
 	else if (m_target && m_target->isActive())
 	{
@@ -736,7 +737,7 @@ u32 keyboard_pad_handler::GetKeyCode(const QString& keyName)
 	u32 key_code = 0;
 
 	if (seq.count() == 1)
-		key_code = seq[0];
+		key_code = seq[0].key();
 	else
 		input_log.notice("GetKeyCode(%s): seq.count() = %d", sstr(keyName), seq.count());
 

@@ -34,7 +34,7 @@
 #include <QLibraryInfo>
 #include <QDirIterator>
 #include <QFileInfo>
-#include <QSound>
+#include <QSoundEffect>
 #include <QMessageBox>
 #include <QTextDocument>
 
@@ -171,7 +171,7 @@ void gui_application::SwitchTranslator(QTranslator& translator, const QString& f
 	// remove the old translator
 	removeTranslator(&translator);
 
-	const QString lang_path = QLibraryInfo::location(QLibraryInfo::TranslationsPath) + QStringLiteral("/");
+	const QString lang_path = QLibraryInfo::path(QLibraryInfo::TranslationsPath) + QStringLiteral("/");
 	const QString file_path = lang_path + filename;
 
 	if (QFileInfo(file_path).isFile())
@@ -234,7 +234,7 @@ QStringList gui_application::GetAvailableLanguageCodes()
 {
 	QStringList language_codes;
 
-	const QString language_path = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
+	const QString language_path = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
 
 	if (QFileInfo(language_path).isDir())
 	{
@@ -549,7 +549,10 @@ void gui_application::InitializeCallbacks()
 		{
 			if (fs::is_file(path))
 			{
-				QSound::play(qstr(path));
+				// TODO: ist this working? Or do we need a member?
+				QSoundEffect sound_effect{};
+				sound_effect.setSource(qstr(path));
+				sound_effect.play();
 			}
 		});
 	};
