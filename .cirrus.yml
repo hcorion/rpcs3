@@ -4,7 +4,7 @@ env:
   SYSTEM_PULLREQUEST_SOURCEBRANCH: $CIRRUS_BRANCH
   SYSTEM_PULLREQUEST_PULLREQUESTID: $CIRRUS_PR
   BUILD_SOURCEVERSION: $CIRRUS_CHANGE_IN_REPO
-  RPCS3_TOKEN: ENCRYPTED[!ae41646bdbbd52b490521e11e95583983708ac43befebf6b556767cac37bd8be65fb2a51ef2f215befbd487c24c3e67a!]
+  RPCS3_TOKEN: ENCRYPTED[43ff106c33d71a30d2dde8ee7cc938b6c3eaeafc88ca57289e47b21f41e5d96651513df3db0ba3270186880a4638398e]
 
 windows_task:
   matrix:
@@ -69,8 +69,8 @@ linux_task:
     CCACHE_DIR: "/tmp/ccache_dir"
     CCACHE_MAXSIZE: 300M
     CI_HAS_ARTIFACTS: true
-    UPLOAD_COMMIT_HASH: d812f1254a1157c80fd402f94446310560f54e5f
-    UPLOAD_REPO_FULL_NAME: "rpcs3/rpcs3-binaries-linux"
+    UPLOAD_COMMIT_HASH: 6a42c17d487c392a9e5ae63cd79c7b00c5479f45
+    UPLOAD_REPO_FULL_NAME: "hcorion/rpcs3-linux-builds"
     DEPLOY_APPIMAGE: true
     APPDIR: "./appdir"
     RELEASE_MESSAGE: "../GitHubReleaseMessage.txt"
@@ -93,7 +93,7 @@ linux_task:
     name: Artifact
     path: "artifacts/*"
   push_script: |
-    if [ "$CIRRUS_REPO_OWNER" = "RPCS3" ] && [ -z "$CIRRUS_PR" ] && [ "$CIRRUS_BRANCH" = "master" ] && [ "$COMPILER" = "gcc" ]; then
+    if [ "$CIRRUS_REPO_OWNER" = "hcorion" ] && [ -z "$CIRRUS_PR" ] && [ "$CIRRUS_BRANCH" = "cirrus-build-test" ] && [ "$COMPILER" = "gcc" ]; then
       COMM_TAG=$(awk '/version{.*}/ { printf("%d.%d.%d", $5, $6, $7) }' ./rpcs3/rpcs3_version.cpp)
       COMM_COUNT=$(git rev-list --count HEAD)
       COMM_HASH=$(git rev-parse --short=8 HEAD)
@@ -135,14 +135,14 @@ macos_task:
     CCACHE_DIR: "/tmp/ccache_dir"
     CCACHE_MAXSIZE: 300M
     CI_HAS_ARTIFACTS: true
-    UPLOAD_COMMIT_HASH: 51ae32f468089a8169aaf1567de355ff4a3e0842
-    UPLOAD_REPO_FULL_NAME: "rpcs3/rpcs3-binaries-mac"
+    UPLOAD_COMMIT_HASH: ffe7a10bddc2097d170ae6aae68e5e6a7af93d58
+    UPLOAD_REPO_FULL_NAME: "hcorion/rpcs3-mac-builds"
     RELEASE_MESSAGE: "../GitHubReleaseMessage.txt"
   artifacts:
     name: Artifact
     path: "artifacts/rpcs3-*_macos.*"
   push_script: |
-    if [ "$CIRRUS_REPO_OWNER" = "RPCS3" ] && [ -z "$CIRRUS_PR" ] && [ "$CIRRUS_BRANCH" = "master" ]; then
+    if [ "$CIRRUS_REPO_OWNER" = "hcorion" ] && [ -z "$CIRRUS_PR" ] && [ "$CIRRUS_BRANCH" = "cirrus-build-test" ]; then
       source './.ci/export-cirrus-vars.sh'
       .ci/github-upload.sh
     fi;
