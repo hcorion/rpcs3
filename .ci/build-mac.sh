@@ -28,7 +28,7 @@ git clone https://github.com/engnr/qt-downloader.git
 cd qt-downloader
 git checkout f52efee0f18668c6d6de2dec0234b8c4bc54c597
 "/opt/homebrew/bin/pipenv" run pip3 install py7zr requests semantic_version lxml
-"/opt/homebrew/bin/pipenv" run ./qt-downloader macos desktop $QT_VER clang_64 --opensource
+"/opt/homebrew/bin/pipenv" run ./qt-downloader macos desktop "$QT_VER" clang_64 --opensource
 cd ..
 
 export Qt6_DIR="$WORKDIR/qt-downloader/$QT_VER/clang_64/lib/cmake/Qt$QT_VER_MAIN"
