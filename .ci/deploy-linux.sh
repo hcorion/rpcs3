@@ -11,7 +11,7 @@ if [ "$DEPLOY_APPIMAGE" = "true" ]; then
     chmod +x /usr/bin/linuxdeploy-plugin-qt
     curl -sL -o linuxdeploy-plugin-checkrt.sh https://github.com/linuxdeploy/linuxdeploy-plugin-checkrt/releases/download/continuous/linuxdeploy-plugin-checkrt-x86_64.sh
     chmod +x ./linuxdeploy-plugin-checkrt.sh
-    curl -sL -o https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh
+    curl -sL -o linuxdeploy-plugin-gstreamer.sh https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh
     chmod +x ./linuxdeploy-plugin-gstreamer.sh
 
     EXTRA_QT_PLUGINS="svg;" APPIMAGE_EXTRACT_AND_RUN=1 linuxdeploy --appdir AppDir --plugin qt --plugin gstreamer
