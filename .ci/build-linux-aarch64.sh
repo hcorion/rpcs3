@@ -16,7 +16,7 @@ if [ "$COMPILER" = "gcc" ]; then
     # These are set in the dockerfile
     export CC="${GCC_BINARY}"
     export CXX="${GXX_BINARY}"
-    #export LINKER=gold
+    export LINKER=bfd
 else
     export CC="${CLANG_BINARY}"
     export CXX="${CLANGXX_BINARY}"

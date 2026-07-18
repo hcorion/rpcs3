@@ -17,11 +17,11 @@ if [ "$COMPILER" = "gcc" ]; then
     # These are set in the dockerfile
     export CC="${GCC_BINARY}"
     export CXX="${GXX_BINARY}"
-    #export LINKER=gold
+    export LINKER=bfd
     # We need to set the following variables for LTO to link properly
     export AR=/usr/bin/gcc-ar-"$GCCVER"
     export RANLIB=/usr/bin/gcc-ranlib-"$GCCVER"
-    #export CFLAGS="-fuse-linker-plugin"
+    export CFLAGS="-fuse-linker-plugin"
 else
     export CC="${CLANG_BINARY}"
     export CXX="${CLANGXX_BINARY}"
